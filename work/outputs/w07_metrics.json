@@ -1,0 +1,96 @@
+{
+  "population_size": 150675,
+  "label_window": "impressions before vs after 2026-03-16, month=2026-03",
+  "seed": 42,
+  "thresholds": {
+    "high_score_cut": 0.5182,
+    "large_swing_cut": 12.0,
+    "low_data_cut": 41.0,
+    "boundary_margin": 0.0259
+  },
+  "archetype_counts": {
+    "no_flag": 65567,
+    "position_worsened_only": 52753,
+    "zero_clicks_only": 14457,
+    "zero_clicks_and_worsened": 10609,
+    "model_only_catch": 7289
+  },
+  "rule_agreement_mean_scores": {
+    "no_flag": 0.401,
+    "position_worsened_only": 0.432,
+    "zero_clicks_and_worsened": 0.494,
+    "zero_clicks_only": 0.472
+  },
+  "confidence_split": {
+    "high": 111255,
+    "low": 39420
+  },
+  "confidence_low_pct": 0.262,
+  "model_only_catch_caution": {
+    "flagged": 42,
+    "total": 7289,
+    "rate": 0.0058
+  },
+  "feature_distribution_baseline": {
+    "avg_position_fh": {
+      "count": 150675.0,
+      "mean": 16.547,
+      "std": 18.215,
+      "min": 0.041,
+      "25%": 5.187,
+      "50%": 8.757,
+      "75%": 21.131,
+      "max": 310.0
+    },
+    "log_impressions_fh": {
+      "count": 150675.0,
+      "mean": 4.63,
+      "std": 2.288,
+      "min": 0.693,
+      "25%": 2.833,
+      "50%": 4.71,
+      "75%": 6.41,
+      "max": 11.993
+    },
+    "log_clicks_fh": {
+      "count": 150675.0,
+      "mean": 0.527,
+      "std": 0.902,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.693,
+      "max": 7.782
+    },
+    "ctr_fh": {
+      "count": 150675.0,
+      "mean": 0.004,
+      "std": 0.034,
+      "min": 0.0,
+      "25%": 0.0,
+      "50%": 0.0,
+      "75%": 0.002,
+      "max": 1.0
+    },
+    "position_change": {
+      "count": 150675.0,
+      "mean": 0.619,
+      "std": 9.208,
+      "min": -213.75,
+      "25%": -0.95,
+      "50%": 0.0,
+      "75%": 1.666,
+      "max": 153.75
+    },
+    "has_position_trend": {
+      "count": 150675.0,
+      "mean": 0.791,
+      "std": 0.407,
+      "min": 0.0,
+      "25%": 1.0,
+      "50%": 1.0,
+      "75%": 1.0,
+      "max": 1.0
+    }
+  }
+}
