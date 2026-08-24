@@ -52,17 +52,19 @@ def build_queue(model_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     low_data_cut = model_df["total_impressions_full"].quantile(LOW_DATA_PERCENTILE)
     boundary_margin = BOUNDARY_MARGIN_PCT * high_score_cut
 
+    print("  Assigning archetypes...", flush=True)
     archetype_info = model_df.apply(
         lambda row: assign_archetype(row, high_score_cut, large_swing_cut),
         axis=1, result_type="expand",
     )
     model_df = model_df.copy()
     model_df[["priority_tier", "archetype", "action"]] = archetype_info
-
+    print("  Assigning confidence...", flush=True)
     model_df["confidence"] = model_df.apply(
         lambda row: assign_confidence(row, low_data_cut, high_score_cut, boundary_margin),
         axis=1,
     )
+    print("  Sorting ranked queue...", flush=True)
 
     model_df["combined_score"] = model_df["oof_rf_score"] + BASELINE_NUDGE_WEIGHT * model_df["baseline_score"]
 
