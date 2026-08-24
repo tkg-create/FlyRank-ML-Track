@@ -54,6 +54,7 @@ def parse_args() -> argparse.Namespace:
 def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     month_path = HF_MONTH_PATH
 
+    print("  [1/6] Querying label (impressions first half vs second half)...", flush=True)
     label_df = con.sql(f"""
         WITH halves AS (
             SELECT
@@ -70,7 +71,9 @@ def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
         FROM halves
         WHERE impr_first_half > 0
     """).df()
+    print(f"        -> {len(label_df):,} rows", flush=True)
 
+    print("  [2/6] Querying full-month position/click signal (baseline rule)...", flush=True)
     pf = con.sql(f"""
         SELECT
             content_hash_id,
@@ -87,7 +90,9 @@ def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     pf_valid["zero_clicks_at_position"] = (
         (pf_valid["avg_position_full"] <= 10) & (pf_valid["total_clicks_full"] == 0) & (pf_valid["eligible"])
     ).astype(int)
+    print(f"        -> {len(pf_valid):,} rows", flush=True)
 
+    print("  [3/6] Querying first-half-only features (model training data)...", flush=True)
     pf_fh = con.sql(f"""
         SELECT
             content_hash_id,
@@ -101,7 +106,9 @@ def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     """).df()
     pf_fh = pf_fh.dropna(subset=["avg_position_fh"]).copy()
     pf_fh["ctr_fh"] = pf_fh["total_clicks_fh"] / pf_fh["total_impressions_fh"]
+    print(f"        -> {len(pf_fh):,} rows", flush=True)
 
+    print("  [4/6] Querying leakage-safe position trend (week 1 vs week 2)...", flush=True)
     postrend = con.sql(f"""
         SELECT
             content_hash_id,
@@ -116,12 +123,16 @@ def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     postrend["position_worsened"] = (postrend["position_change"] > 0).astype(int)
     postrend_eligible = postrend.merge(pf_valid[["content_hash_id", "eligible"]], on="content_hash_id", how="left")
     postrend_eligible = postrend_eligible[postrend_eligible["eligible"] == True].copy()  # noqa: E712
+    print(f"        -> {len(postrend_eligible):,} rows", flush=True)
 
+    print("  [5/6] Querying client map (grouping key only, never a feature)...", flush=True)
     client_map = con.sql(f"""
         SELECT DISTINCT content_hash_id, client_hash_id
         FROM read_parquet('{month_path}')
     """).df()
+    print(f"        -> {len(client_map):,} rows", flush=True)
 
+    print("  [6/6] Merging into model_df...", flush=True)
     model_df = pf_fh.merge(
         pf_valid[["content_hash_id", "total_impressions_full", "eligible", "zero_clicks_at_position"]],
         on="content_hash_id", how="inner",
@@ -150,13 +161,15 @@ def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
 
     oof_rf = np.full(len(model_df), np.nan)
     gkf = GroupKFold(n_splits=N_FOLDS)
-    for train_idx, test_idx in gkf.split(X, y, groups):
+    for fold_num, (train_idx, test_idx) in enumerate(gkf.split(X, y, groups), start=1):
+        print(f"  Fold {fold_num}/{N_FOLDS}: fitting on {len(train_idx):,} rows, scoring {len(test_idx):,}...", flush=True)
         rf = RandomForestClassifier(
             n_estimators=300, max_depth=6, min_samples_leaf=20,
             random_state=RANDOM_STATE, n_jobs=-1,
         )
         rf.fit(X.iloc[train_idx], y.iloc[train_idx])
         oof_rf[test_idx] = rf.predict_proba(X.iloc[test_idx])[:, 1]
+        print(f"  Fold {fold_num}/{N_FOLDS}: done", flush=True)
 
     model_df = model_df.copy()
     model_df["oof_rf_score"] = oof_rf
