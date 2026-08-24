@@ -1,11 +1,8 @@
 """Run the full w07 pipeline: load/score, then build the ranked queue.
 
-Mirrors scripts/run_all.py's structure — prompts for the HF token once
-(getpass, never hardcoded), sets it in the environment so every subprocess
-step inherits it, then runs each step in order.
+Prompts for the HF token once (getpass, not hardcoded), sets it in the environment so every subprocess step inherits it, then runs each step in order.
 
-Usage (from a notebook, matching notebooks/01_first_look_and_discovery.ipynb's
-pattern of shelling out to the reference pipeline):
+Usage (from a notebook):
 
     import sys
     !{sys.executable} work/scripts/run_all.py
@@ -35,14 +32,15 @@ STEPS = [
 
 def run_step(index: int, script: str, label: str) -> None:
     print(f"\n{'=' * 70}\n▶ Step {index}/{len(STEPS)} — {label}\n{'=' * 70}", flush=True)
-    subprocess.run([sys.executable, str(SCRIPTS_DIR / script)], cwd=ROOT, check=True)
+    # "-u" forces the child process's stdout/stderr to be unbuffered. Without it, 
+    # Python fully buffers output when stdout isn't a real terminal (true for any subprocess),
+    # so print() statements inside 01/02 would queue up invisibly and only appear in a burst at the end instead of streaming.
+    subprocess.run([sys.executable, "-u", str(SCRIPTS_DIR / script)], cwd=ROOT, check=True)
 
 
 def main() -> None:
-    # Prompt once here so both steps inherit the same token via the
-    # environment — avoids prompting twice, and avoids the unreliable
-    # stdin behavior of prompting for a secret *inside* a subprocess
-    # launched via Colab's `!` shell magic.
+    # Prompt once here so both steps inherit the same token via the environment — avoids prompting twice,
+    # and avoids the unreliable stdin behavior of prompting for a secret inside a subprocess launched via Colab's `!` shell magic.
     os.environ["HF_TOKEN"] = get_hf_token()
 
     for index, (script, label) in enumerate(STEPS, start=1):
