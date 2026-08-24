@@ -1,8 +1,6 @@
-"""Build the ranked action queue from a scored population and export the
-paper-facing artifacts.
+"""Build the ranked action queue from a scored population and export the paper-facing artifacts.
 
-Consolidates w07 Cell B (archetype/confidence assignment, combined_score
-ranking) and Section 5 (metrics JSON, charts, report, local-only queue CSV).
+Consolidates work from previous notebooks (archetype/confidence assignment, combined_score ranking) and output (metrics JSON, charts, report, local-only queue CSV).
 
 Usage:
     python work/scripts/02_build_queue.py
@@ -182,10 +180,8 @@ Scored population: {metrics['population_size']:,} pages, {metrics.get('label_win
 
 ## Practical use
 
-Use this queue as a reviewer aid, not an automatic action trigger. Every action here is a
-starting point for review, not an instruction to execute unread. See the source notebook
-(work/notebooks/w07_action_playbook.ipynb) for intended use, limits, human review rules,
-the no-go list, and monitoring/retrain triggers.
+Use this queue as a reviewer aid, not an automatic action trigger. Every action here is a starting point for review, not an instruction to execute unread. 
+See the source notebook (work/notebooks/w07_action_playbook.ipynb) for intended use, limits, human review rules, the no-go list, and monitoring/retrain triggers.
 
 ## Generated files
 
