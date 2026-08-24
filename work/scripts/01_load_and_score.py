@@ -1,13 +1,8 @@
-"""Load a month of warehouse data, build features, score with the baseline
-rule and an out-of-fold random forest.
+"""Load a month of warehouse data, build features, score with the baseline rule and an out-of-fold random forest.
 
-Consolidates: w04's baseline rule, w05's model/feature design, w06's
-leakage-safe position trend and GroupKFold validation approach, and w07's
-Cell A (which itself rebuilt w06's OOF scores at runtime, since work/**/*.csv
-is gitignored and nothing from w06 was ever persisted).
+Consolidates work from previous notebooks (baseline rule, model/feature design, leakage-safe position trend and GroupKFold validation approach, etc).
 
-Requires an HF_TOKEN — set via getpass() here, or pre-set in the environment
-by a caller (e.g. run_all.py) so every step in the pipeline shares one prompt.
+Requires an HF_TOKEN — set via getpass() here, or pre-set in the environment by a caller (e.g. run_all.py) so every step in the pipeline shares one prompt.
 
 Usage:
     python work/scripts/01_load_and_score.py
