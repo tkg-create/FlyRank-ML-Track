@@ -1,26 +1,21 @@
-"""Validate combined_score's ranking quality — capstone-only addition, not part of w07.
+"""Validate combined_score's ranking quality
 
-w06 validated oof_rf_score with GroupKFold precision@K. w07 then built
-combined_score = oof_rf_score + BASELINE_NUDGE_WEIGHT * baseline_score on top of that
-validated score (see w07_pipeline_utils.py), but combined_score itself was never re-run
-through precision@K — the queue that actually gets deployed was never the thing that got
-validated. This script closes that gap for the capstone's headline K=50 result.
+w06 validated oof_rf_score with GroupKFold precision@K. 
+w07 then built combined_score = oof_rf_score + BASELINE_NUDGE_WEIGHT * baseline_score on top of that validated score (see w07_pipeline_utils.py), 
+but combined_score itself was never re-run through precision@K — the queue that actually gets deployed was never the thing that got validated. 
+This script closes that gap for the capstone's headline K=50 result.
 
-Method: GroupKFold is deterministic given the same data, row order, and grouping column —
-no random_state involved — so re-splitting the already-scored population (the output of
-01_load_and_score.py) reproduces the exact same 5 folds used to produce oof_rf_score in the
-first place. No retraining happens here; this only re-slices existing scores into their
-original per-fold test membership so precision@K can be computed on combined_score.
+Method: GroupKFold is deterministic given the same data, row order, and grouping column — no random_state involved — 
+so re-splitting the already-scored population (the output of 01_load_and_score.py) reproduces the exact same 5 folds used to produce oof_rf_score in the first place. 
+No retraining happens here; this only re-slices existing scores into their original per-fold test membership so precision@K can be computed on combined_score.
 
-Built-in sanity check: baseline_rule and oof_rf_score precision@K are recomputed here too,
-using this same fold reconstruction, and printed plainly. Compare these against your own
-w06 Cell 10 printout before trusting the new combined_score numbers below them — if the
-fold reconstruction were wrong (e.g. row order changed between 01's write and this script's
-read), the oof_rf_score column here would drift from w06's reported values.
+Built-in sanity check: baseline_rule and oof_rf_score precision@K are recomputed here too, using this same fold reconstruction, and printed plainly. 
+Compare these against your own w06 Cell 10 printout before trusting the new combined_score numbers below them — 
+if the fold reconstruction were wrong (e.g. row order changed between 01's write and this script's read), 
+the oof_rf_score column here would drift from w06's reported values.
 
-ASSUMES: work/data/processed/w07_scored_population.csv exists and is in the same row order
-01_load_and_score.py wrote it in (i.e. not re-sorted or filtered since). Rerun
-01_load_and_score.py fresh if that's ever in doubt.
+ASSUMES: work/data/processed/w07_scored_population.csv exists and is in the same row order 01_load_and_score.py wrote it in (i.e. not re-sorted or filtered since). 
+Rerun 01_load_and_score.py fresh if that's ever in doubt.
 
 Usage:
     python work/scripts/03_validate_combined_score.py
@@ -57,8 +52,7 @@ BOOT_SEED = 42  # matches w06's bootstrap CI cell
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Recompute per-fold precision@K for baseline_rule, oof_rf_score, "
-        "and combined_score using the fold split that already produced oof_rf_score."
+        description="Recompute per-fold precision@K for baseline_rule, oof_rf_score, and combined_score using the fold split that already produced oof_rf_score."
     )
     parser.add_argument("--input", default=str(DEFAULT_INPUT))
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
@@ -98,8 +92,7 @@ def main() -> None:
     model_df = pd.read_csv(input_path)
     if "oof_rf_score" not in model_df.columns:
         raise ValueError(
-            f"{input_path} has no oof_rf_score column — was it written by "
-            "01_load_and_score.py, or by an older/partial run?"
+            f"{input_path} has no oof_rf_score column — was it written by 01_load_and_score.py, or by an older/partial run?"
         )
 
     model_df["combined_score"] = model_df["oof_rf_score"] + BASELINE_NUDGE_WEIGHT * model_df["baseline_score"]
@@ -171,8 +164,7 @@ def main() -> None:
         }
 
     output = {
-        "note": "Recomputed from the OOF fold membership that already produced oof_rf_score in "
-                "01_load_and_score.py. No retraining — see script docstring.",
+        "note": "Recomputed from the OOF fold membership that already produced oof_rf_score in 01_load_and_score.py. No retraining — see script docstring.",
         "n_folds": N_FOLDS,
         "ks": KS,
         "fold_level": fold_df.to_dict(orient="records"),
