@@ -155,6 +155,7 @@ def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
     groups = model_df["client_hash_id"]
 
     oof_rf = np.full(len(model_df), np.nan)
+    fold_id = np.full(len(model_df), -1, dtype=int)
     gkf = GroupKFold(n_splits=N_FOLDS)
     for fold_num, (train_idx, test_idx) in enumerate(gkf.split(X, y, groups), start=1):
         print(f"  Fold {fold_num}/{N_FOLDS}: fitting on {len(train_idx):,} rows, scoring {len(test_idx):,}...", flush=True)
@@ -164,10 +165,14 @@ def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
         )
         rf.fit(X.iloc[train_idx], y.iloc[train_idx])
         oof_rf[test_idx] = rf.predict_proba(X.iloc[test_idx])[:, 1]
+        fold_id[test_idx] = fold_num
         print(f"  Fold {fold_num}/{N_FOLDS}: done", flush=True)
+
+    assert (fold_id > 0).all(), "Every row should have been scored by exactly one fold — some rows never got a fold_id."
 
     model_df = model_df.copy()
     model_df["oof_rf_score"] = oof_rf
+    model_df["fold_id"] = fold_id  # which fold's model scored this row — see 04_check_fold_representation.py
     return model_df
 
 
