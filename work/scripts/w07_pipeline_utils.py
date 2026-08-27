@@ -8,6 +8,15 @@ Every threshold and design choice below is a *validated, final* decision
 from w04-w07 (see each notebook for the full reasoning and the paths that
 were tried and rejected). Nothing here is new — this consolidates, it does
 not extend.
+
+Exception: calibrate_scores() below. w06's error analysis found that pooling
+raw out-of-fold probabilities across 5 separately trained fold models does
+not produce a comparable cross-fold ranking — one fold's model output
+systematically higher raw scores without being more accurate. That was
+noted in w06 but never resolved there or in w07. It was re-checked against
+the real scored population during capstone validation
+(work/outputs/fold_representation_check.json) and confirmed severe enough
+to fix, not just document. calibrate_scores() is that fix.
 """
 from __future__ import annotations
 
@@ -19,6 +28,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
+from sklearn.isotonic import IsotonicRegression
 
 # --- Paths -------------------------------------------------------------
 # This file lives at work/scripts/w07_pipeline_utils.py, so parents[2] is
@@ -134,10 +144,55 @@ FEATURE_COLS = [
 # outcomes — see w07 Section 4's "cost/value" note on treating baseline
 # tiers as a nudge, not a hard prioritization.
 
-# --- Queue ranking (w07) ----------------------------------------------------
+# --- Cross-fold calibration (added during capstone validation) -------------
+# 01_load_and_score.py trains 5 separate Random Forest models (one per
+# GroupKFold fold) and pools their out-of-fold probabilities into one
+# oof_rf_score column. That pooling assumes all 5 models' probabilities
+# mean the same thing on the same scale. They don't: w06's error analysis
+# found one fold's model producing systematically inflated raw scores
+# without being more accurate, and this was reconfirmed on the real scored
+# population (see work/outputs/fold_representation_check.json) — one fold
+# took 93-100% of the top-K queue at every K checked, while the fold with
+# the highest actual base rate was almost entirely absent from it.
+#
+# calibrate_scores() fits one pooled isotonic regression across all rows'
+# (raw_score, true_label) pairs, producing a single monotonic mapping from
+# raw score to empirical outcome rate. This forces every fold's scores onto
+# one shared, comparable scale. A monotonic transform can never INVERT the
+# order of two rows that had different raw scores — but isotonic regression
+# commonly maps a range of close raw scores to the same calibrated value
+# (flat plateaus), and rows tied at that value can then be reordered by
+# whatever the sort does with ties. In practice this means fold-internal
+# precision@K should stay close before and after calibration, not that it's
+# guaranteed bit-identical — 03_validate_combined_score.py checks this
+# directly rather than assuming it.
+def calibrate_scores(raw_scores: pd.Series, y: pd.Series) -> np.ndarray:
+    """Pooled isotonic calibration across all folds' OOF scores.
+
+    Fits one shared monotonic mapping from raw out-of-fold score to
+    empirical outcome rate, using every row in the population regardless of
+    which fold scored it. See the module-level note above for why this
+    exists — it corrects for 5 independently trained fold models never
+    being told to agree on what a given probability means.
+    """
+    iso = IsotonicRegression(out_of_bounds="clip")
+    return iso.fit_transform(raw_scores, y)
+
+
+# --- Queue ranking (w07, updated during capstone validation) ---------------
 # combined_score = oof_rf_score + BASELINE_NUDGE_WEIGHT * baseline_score
 #
-# Two alternatives were tried and rejected before landing here:
+# As of the capstone fix above, "oof_rf_score" here and everywhere
+# downstream (assign_archetype, assign_confidence, this formula) refers to
+# the CALIBRATED score — 02_build_queue.py swaps the calibrated column in
+# under the oof_rf_score name immediately after loading, so nothing below
+# needed to change to pick up the fix. The original, uncalibrated score is
+# preserved separately as oof_rf_score_raw for audit.
+#
+# Two alternatives to this additive formula were tried and rejected before
+# landing here (both against the pre-calibration score, still the right
+# call post-calibration — this decision was about how to combine the
+# model's score with the rule's, not about which model score to use):
 #   1. Tier-first sort (sort by rule tier, then by oof_rf_score only to
 #      break ties within a tier). Rejected: the model's score could never
 #      move a row out of its rule-assigned tier, which contradicts the
@@ -177,6 +232,10 @@ def assign_archetype(row: pd.Series, high_score_cut: float, large_swing_cut: flo
     sort order (that's combined_score, computed by the caller). Kept as its
     own column because value_counts()/groupby() on it are how w07's
     diagnostics were built.
+
+    row["oof_rf_score"] here is whatever the caller put in that column.
+    02_build_queue.py puts the calibrated score there — see the module note
+    above.
     """
     if row["zero_clicks_at_position"] == 1 and row["position_worsened"] == 1:
         return 1, "zero_clicks_and_worsened", "Refresh content + overhaul title/meta"
@@ -206,7 +265,12 @@ def assign_confidence(
     high_score_cut: float,
     boundary_margin: float,
 ) -> str:
-    """Returns 'low' or 'high'. See w07 Section 1 / the confidence tuning pass."""
+    """Returns 'low' or 'high'. See w07 Section 1 / the confidence tuning pass.
+
+    Same note as assign_archetype above: row["oof_rf_score"] is whatever
+    score the caller assigned to that column — calibrated, as of the
+    capstone fix.
+    """
     if row["total_impressions_full"] < low_data_cut:
         return "low"
     if row["archetype"] == "model_only_catch" and abs(row["oof_rf_score"] - high_score_cut) < boundary_margin:

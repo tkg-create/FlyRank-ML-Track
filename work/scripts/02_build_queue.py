@@ -2,6 +2,12 @@
 
 Consolidates work from previous notebooks (archetype/confidence assignment, combined_score ranking) and output (metrics JSON, charts, report, local-only queue CSV).
 
+As of the capstone fix, this script uses the CALIBRATED score (oof_rf_score_calibrated,
+added by 01_load_and_score.py) for every downstream decision — archetypes, confidence,
+combined_score, the queue's sort order. See w07_pipeline_utils.py's module-level note on
+calibrate_scores() for why. The original raw score is preserved as oof_rf_score_raw for
+audit, but nothing in this script's output is built from it.
+
 Usage:
     python work/scripts/02_build_queue.py
     python work/scripts/02_build_queue.py --input work/data/processed/custom.csv
@@ -42,6 +48,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--queue-output", default=str(DEFAULT_QUEUE_OUTPUT))
     parser.add_argument("--output-dir", default=str(OUTPUT_DIR))
     return parser.parse_args()
+
+
+def use_calibrated_score(model_df: pd.DataFrame) -> pd.DataFrame:
+    """Swaps the calibrated score into the oof_rf_score column that every downstream
+    function (assign_archetype, assign_confidence, combined_score) already reads, so none
+    of that code needed to change. Raw score is kept as oof_rf_score_raw for audit.
+    """
+    if "oof_rf_score_calibrated" not in model_df.columns:
+        raise ValueError(
+            "oof_rf_score_calibrated column not found. This CSV predates the calibration "
+            "fix — rerun 01_load_and_score.py (current version) to regenerate it."
+        )
+    model_df = model_df.copy()
+    model_df["oof_rf_score_raw"] = model_df["oof_rf_score"]
+    model_df["oof_rf_score"] = model_df["oof_rf_score_calibrated"]
+    return model_df
 
 
 def build_queue(model_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
@@ -93,6 +115,7 @@ def build_metrics(model_df: pd.DataFrame, thresholds: dict) -> dict:
     return {
         "population_size": int(len(model_df)),
         "seed": 42,
+        "score_used": "oof_rf_score_calibrated (pooled isotonic) — see w07_pipeline_utils.py",
         "thresholds": thresholds,
         "archetype_counts": model_df["archetype"].value_counts().to_dict(),
         "rule_agreement_mean_scores": rule_agreement_means,
@@ -138,6 +161,12 @@ def write_report(ranked_queue: pd.DataFrame, metrics: dict, report_path: Path) -
 
 Scored population: {metrics['population_size']:,} pages, {metrics.get('label_window', 'March 2026')}, `is_declining_proxy` label.
 
+Queue is ranked by combined_score, built from the calibrated model score (see
+work/outputs/fold_representation_check.json for why calibration was added — pooling 5
+separately trained fold models' raw scores without it was found to skew the queue toward
+whichever fold happened to produce the highest raw scores, not toward the pages most likely
+to actually be declining).
+
 ## Archetype breakdown
 
 | Archetype | Count | Action |
@@ -155,7 +184,7 @@ Scored population: {metrics['population_size']:,} pages, {metrics.get('label_win
 
 ## Rule-agreement check (model score vs. rule severity, rule-only archetypes)
 
-| Archetype | Mean oof_rf_score |
+| Archetype | Mean oof_rf_score (calibrated) |
 |---|---:|
 """
     for archetype, score in metrics["rule_agreement_mean_scores"].items():
@@ -206,6 +235,7 @@ def main() -> None:
             f"Scored population not found: {input_path}. Run 01_load_and_score.py first."
         )
     model_df = pd.read_csv(input_path)
+    model_df = use_calibrated_score(model_df)
 
     ranked_queue, thresholds = build_queue(model_df)
     metrics = build_metrics(ranked_queue, thresholds)
