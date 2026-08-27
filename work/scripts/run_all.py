@@ -1,10 +1,9 @@
 """Run the full w07 pipeline: load/score, then build the ranked queue.
 
 Only 01 and 02 run here — those are the two steps that produce the deployable queue.
-03_validate_combined_score.py and 04_check_fold_representation.py are validation/audit
-scripts: they consume this pipeline's output and check it, they don't feed anything back
-into what gets built. Run them separately, after this, when you want to (re)validate rather
-than every time you rebuild the queue.
+03_validate_combined_score.py and 04_check_fold_representation.py are validation/audit scripts: 
+they consume this pipeline's output and check it, they don't feed anything back into what gets built. 
+Run them separately, after this, when you want to (re)validate rather than every time you rebuild the queue.
 
 Prompts for the HF token once (getpass, not hardcoded), sets it in the environment so every subprocess step inherits it, then runs each step in order.
 
