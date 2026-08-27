@@ -28,7 +28,7 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.isotonic import IsotonicRegression
+from sklearn.linear_model import LogisticRegression
 
 # --- Paths -------------------------------------------------------------
 # This file lives at work/scripts/w07_pipeline_utils.py, so parents[2] is
@@ -155,28 +155,40 @@ FEATURE_COLS = [
 # took 93-100% of the top-K queue at every K checked, while the fold with
 # the highest actual base rate was almost entirely absent from it.
 #
-# calibrate_scores() fits one pooled isotonic regression across all rows'
-# (raw_score, true_label) pairs, producing a single monotonic mapping from
-# raw score to empirical outcome rate. This forces every fold's scores onto
-# one shared, comparable scale. A monotonic transform can never INVERT the
-# order of two rows that had different raw scores — but isotonic regression
-# commonly maps a range of close raw scores to the same calibrated value
-# (flat plateaus), and rows tied at that value can then be reordered by
-# whatever the sort does with ties. In practice this means fold-internal
-# precision@K should stay close before and after calibration, not that it's
-# guaranteed bit-identical — 03_validate_combined_score.py checks this
-# directly rather than assuming it.
+# First attempt: pooled isotonic regression. It corrected the cross-fold
+# bias, but empirically collapsed oof_rf_score_calibrated into just 31
+# unique values across all 150,675 rows — one single value covered 55% of
+# the population. Isotonic regression minimizes squared calibration error
+# by fitting a step function, which is fine for probability estimation but
+# destroys the fine-grained ordering a ranking key and two threshold
+# comparisons (assign_archetype, assign_confidence) both depend on. It also
+# explained an unrelated-looking symptom: model_only_catch jumping from
+# 7,289 to 34,128 rows wasn't the calibration finding real new catches, it
+# was tens of thousands of rows on the same plateau crossing high_score_cut
+# together as a block.
+#
+# calibrate_scores() below uses Platt scaling instead — a single pooled
+# logistic regression on raw score. It corrects the same cross-fold bias,
+# still one shared monotonic mapping from raw score to empirical outcome
+# rate, but produces a continuous curve rather than a step function, so it
+# doesn't create artificial ties. Real ties can still occur where the
+# forest itself produced identical raw scores for different rows (~32,000
+# of 150,675 rows share a raw score with at least one other row) — that's
+# genuine, not an artifact of calibration, and is handled by breaking ties
+# with oof_rf_score_raw wherever this score is used to rank or sort, not by
+# the calibration function itself.
 def calibrate_scores(raw_scores: pd.Series, y: pd.Series) -> np.ndarray:
-    """Pooled isotonic calibration across all folds' OOF scores.
+    """Platt scaling: pooled logistic regression calibration across all folds' OOF scores.
 
-    Fits one shared monotonic mapping from raw out-of-fold score to
-    empirical outcome rate, using every row in the population regardless of
-    which fold scored it. See the module-level note above for why this
-    exists — it corrects for 5 independently trained fold models never
-    being told to agree on what a given probability means.
+    Fits one shared, strictly monotonic (sigmoid) mapping from raw out-of-fold score to
+    empirical outcome rate, using every row in the population regardless of which fold
+    scored it. See the module-level note above for why this replaced an earlier isotonic
+    regression version, which corrected the same bias but collapsed the score into too few
+    unique values to use as a ranking key.
     """
-    iso = IsotonicRegression(out_of_bounds="clip")
-    return iso.fit_transform(raw_scores, y)
+    lr = LogisticRegression()
+    lr.fit(raw_scores.values.reshape(-1, 1), y)
+    return lr.predict_proba(raw_scores.values.reshape(-1, 1))[:, 1]
 
 
 # --- Queue ranking (w07, updated during capstone validation) ---------------

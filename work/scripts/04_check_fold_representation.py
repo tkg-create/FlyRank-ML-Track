@@ -74,11 +74,14 @@ def per_fold_calibration_table(model_df: pd.DataFrame, score_col: str, y: pd.Ser
     return rows
 
 
-def top_k_representation(model_df: pd.DataFrame, score_col: str) -> dict:
+def top_k_representation(model_df: pd.DataFrame, score_col: str, tiebreak_col: str | None = None) -> dict:
     expected_share = 1.0 / N_FOLDS
     col_results = {}
     for k in KS:
-        top_k = model_df.sort_values(score_col, ascending=False).head(k)
+        if tiebreak_col:
+            top_k = model_df.sort_values([score_col, tiebreak_col], ascending=[False, False]).head(k)
+        else:
+            top_k = model_df.sort_values(score_col, ascending=False).head(k)
         observed_counts = top_k["fold_id"].value_counts().reindex(range(1, N_FOLDS + 1), fill_value=0)
         observed_share = observed_counts / k
         max_fold = observed_share.idxmax()
@@ -138,14 +141,15 @@ def main() -> None:
     print("=" * 70)
 
     representation_results = {}
-    for label, col in [
-        ("oof_rf_score (raw)", "oof_rf_score"),
-        ("oof_rf_score_calibrated", "oof_rf_score_calibrated"),
-        ("combined_score (raw formula)", "combined_score_raw"),
-        ("combined_score (calibrated formula — this is what's deployed)", "combined_score_calibrated"),
+    for label, col, tiebreak in [
+        ("oof_rf_score (raw)", "oof_rf_score", None),
+        ("oof_rf_score_calibrated", "oof_rf_score_calibrated", None),
+        ("combined_score (raw formula)", "combined_score_raw", None),
+        ("combined_score (calibrated formula, real tiebreak — this is what's deployed)",
+         "combined_score_calibrated", "oof_rf_score_raw"),
     ]:
         print(f"\n[{label}]:")
-        col_results = top_k_representation(model_df, col)
+        col_results = top_k_representation(model_df, col, tiebreak_col=tiebreak)
         for k in KS:
             r = col_results[str(k)]
             counts_str = ", ".join(f"fold{f}={r['counts_by_fold'][str(f)]}" for f in range(1, N_FOLDS + 1))

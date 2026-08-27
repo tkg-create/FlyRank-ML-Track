@@ -152,7 +152,7 @@ def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
     """Adds oof_rf_score (raw), fold_id (which fold scored each row), and
-    oof_rf_score_calibrated (pooled isotonic calibration across all folds —
+    oof_rf_score_calibrated (pooled Platt scaling across all folds —
     see w07_pipeline_utils.calibrate_scores for why this exists).
     """
     X = model_df[FEATURE_COLS].astype(float)
@@ -179,7 +179,7 @@ def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
     model_df["oof_rf_score"] = oof_rf
     model_df["fold_id"] = fold_id  # which fold's model scored this row — see 04_check_fold_representation.py
 
-    print("  Calibrating OOF scores (pooled isotonic, across all folds)...", flush=True)
+    print("  Calibrating OOF scores (pooled Platt scaling, across all folds)...", flush=True)
     model_df["oof_rf_score_calibrated"] = calibrate_scores(model_df["oof_rf_score"], y)
 
     return model_df
@@ -213,7 +213,7 @@ def main() -> None:
         "n_folds": N_FOLDS,
         "random_state": RANDOM_STATE,
         "feature_cols": FEATURE_COLS,
-        "calibration": "pooled isotonic regression on oof_rf_score, see oof_rf_score_calibrated column",
+        "calibration": "pooled Platt scaling (logistic regression) on oof_rf_score, see oof_rf_score_calibrated column",
         "output": display_path(output_path),
     })
 

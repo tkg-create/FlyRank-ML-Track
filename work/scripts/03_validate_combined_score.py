@@ -61,8 +61,10 @@ DEFAULT_OUTPUT = OUTPUT_DIR / "capstone_precision_at_k.json"
 KS = [20, 50, 100, 200]
 N_BOOT = 10_000
 BOOT_SEED = 42  # matches w06's bootstrap CI cell
-INVARIANCE_TOLERANCE = 0.05  # fold-internal precision@K, raw vs calibrated: small drift from
-                              # tie-breaking is expected, this is not a strict equality check
+INVARIANCE_TOLERANCE = 0.02  # fold-internal precision@K, raw vs calibrated. Platt scaling is
+                              # continuous, so real ties should be rare (only genuine raw-score
+                              # duplicates) — tighter than the isotonic version's tolerance,
+                              # which had to accommodate large deliberate plateaus.
 
 
 def parse_args() -> argparse.Namespace:
@@ -79,10 +81,20 @@ def precision_at_k(order_labels: np.ndarray, k: int) -> float:
     return float(np.asarray(order_labels)[:k].mean())
 
 
-def score_fold(model_df: pd.DataFrame, test_idx: np.ndarray, score_col: str, y: pd.Series) -> np.ndarray:
-    """Rank a fold's test rows by score_col (descending), return the ranked y labels."""
+def score_fold(
+    model_df: pd.DataFrame, test_idx: np.ndarray, score_col: str, y: pd.Series,
+    tiebreak_col: str | None = None,
+) -> np.ndarray:
+    """Rank a fold's test rows by score_col (descending), optionally breaking ties with
+    tiebreak_col, return the ranked y labels. combined_score is ranked with
+    oof_rf_score_raw as the tiebreak here specifically to match 02_build_queue.py's real
+    sort — this function should validate what's actually deployed, not a simpler version of it.
+    """
     test_slice = model_df.iloc[test_idx]
-    order = test_slice[score_col].sort_values(ascending=False).index
+    if tiebreak_col:
+        order = test_slice.sort_values([score_col, tiebreak_col], ascending=[False, False]).index
+    else:
+        order = test_slice[score_col].sort_values(ascending=False).index
     return y.loc[order].values
 
 
@@ -141,7 +153,7 @@ def main() -> None:
 
         rf_ranked_raw = score_fold(model_df, test_idx, "oof_rf_score", y)
         rf_ranked_calibrated = score_fold(model_df, test_idx, "oof_rf_score_calibrated", y)
-        combined_ranked = score_fold(model_df, test_idx, "combined_score", y)
+        combined_ranked = score_fold(model_df, test_idx, "combined_score", y, tiebreak_col="oof_rf_score_raw")
 
         for k in KS:
             fold_records.append({

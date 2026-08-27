@@ -88,7 +88,12 @@ def build_queue(model_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 
     model_df["combined_score"] = model_df["oof_rf_score"] + BASELINE_NUDGE_WEIGHT * model_df["baseline_score"]
 
-    ranked_queue = model_df.sort_values("combined_score", ascending=False).reset_index(drop=True)
+    # Tiebreak by the raw score, not sort_values' default (row order) — defensive: Platt
+    # scaling shouldn't create wide ties the way isotonic did, but any genuine tie (e.g. two
+    # rows the forest scored identically) should break on real signal, not incidental order.
+    ranked_queue = model_df.sort_values(
+        ["combined_score", "oof_rf_score_raw"], ascending=[False, False]
+    ).reset_index(drop=True)
 
     thresholds = {
         "high_score_cut": float(high_score_cut),
