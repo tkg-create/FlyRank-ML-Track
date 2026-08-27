@@ -5,17 +5,12 @@ w07 then built combined_score = oof_rf_score + BASELINE_NUDGE_WEIGHT * baseline_
 but combined_score itself was never re-run through precision@K — the queue that actually gets deployed was never the thing that got validated. 
 This script closes that gap for the capstone's headline K=50 result.
 
-Updated for the calibration fix: 02_build_queue.py now builds combined_score from
-oof_rf_score_calibrated, not the raw oof_rf_score. This script validates that calibrated
-version, since that's what's actually deployed. It also runs one extra check before
-trusting anything else here: calibration is a monotonic transform, so it can never invert
-the order of two rows with genuinely different raw scores. It can, however, map a range of
-close raw scores to the same calibrated value (isotonic regression produces flat plateaus),
-and ties like that can be reordered by the sort. So fold-internal precision@K for
-oof_rf_score_calibrated is expected to stay CLOSE to fold-internal precision@K for the
-original raw oof_rf_score, not necessarily identical. That's checked directly below —
-small drift is expected and fine, a large drift means something other than tie-breaking is
-going on and is worth investigating before trusting the numbers that follow.
+Updated for the calibration fix: 02_build_queue.py now builds combined_score from oof_rf_score_calibrated, not the raw oof_rf_score. 
+This script validates that calibrated version, since that's what's actually deployed. 
+It also runs one extra check before trusting anything else here: calibration is a monotonic transform, so it can never invert the order of two rows with genuinely different raw scores. 
+It can, however, map a range of close raw scores to the same calibrated value (isotonic regression produces flat plateaus), and ties like that can be reordered by the sort. 
+So fold-internal precision@K for oof_rf_score_calibrated is expected to stay CLOSE to fold-internal precision@K for the original raw oof_rf_score, not necessarily identical. 
+That's checked directly below; a small drift is expected and fine, a large drift means something other than tie-breaking is going on and is worth investigating before trusting the numbers that follow.
 
 Method: GroupKFold is deterministic given the same data, row order, and grouping column — no random_state involved — 
 so re-splitting the already-scored population (the output of 01_load_and_score.py) reproduces the exact same 5 folds used to produce oof_rf_score in the first place. 
@@ -61,9 +56,9 @@ DEFAULT_OUTPUT = OUTPUT_DIR / "capstone_precision_at_k.json"
 KS = [20, 50, 100, 200]
 N_BOOT = 10_000
 BOOT_SEED = 42  # matches w06's bootstrap CI cell
-INVARIANCE_TOLERANCE = 0.02  # fold-internal precision@K, raw vs calibrated. Platt scaling is
-                              # continuous, so real ties should be rare (only genuine raw-score
-                              # duplicates) — tighter than the isotonic version's tolerance,
+INVARIANCE_TOLERANCE = 0.02  # fold-internal precision@K, raw vs calibrated. Platt scaling is continuous, 
+                              # so real ties should be rare (only genuine raw-score duplicates) —
+                              # tighter than the isotonic version's tolerance,
                               # which had to accommodate large deliberate plateaus.
 
 
@@ -85,10 +80,9 @@ def score_fold(
     model_df: pd.DataFrame, test_idx: np.ndarray, score_col: str, y: pd.Series,
     tiebreak_col: str | None = None,
 ) -> np.ndarray:
-    """Rank a fold's test rows by score_col (descending), optionally breaking ties with
-    tiebreak_col, return the ranked y labels. combined_score is ranked with
-    oof_rf_score_raw as the tiebreak here specifically to match 02_build_queue.py's real
-    sort — this function should validate what's actually deployed, not a simpler version of it.
+    """Rank a fold's test rows by score_col (descending), optionally breaking ties with tiebreak_col, return the ranked y labels. 
+    combined_score is ranked with oof_rf_score_raw as the tiebreak here specifically to match 02_build_queue.py's real sort — 
+    this function should validate what's actually deployed, not a simpler version of it.
     """
     test_slice = model_df.iloc[test_idx]
     if tiebreak_col:
@@ -167,9 +161,8 @@ def main() -> None:
 
     fold_df = pd.DataFrame(fold_records)
 
-    # --- Tie-breaking check: calibration is monotonic, so it can't invert the order of two
-    # rows with genuinely different raw scores, but it can tie rows with close raw scores
-    # together, and ties can then get reordered. Small drift here is expected, not a bug.
+    # --- Tie-breaking check: calibration is monotonic, so it can't invert the order of two rows with genuinely different raw scores,
+    # but it can tie rows with close raw scores together, and ties can then get reordered. Small drift here is expected, not a bug.
     max_diff = (fold_df["oof_rf_score_raw"] - fold_df["oof_rf_score_calibrated"]).abs().max()
     print(f"\nTie-breaking check: max |raw - calibrated| fold-internal precision@K difference = {max_diff:.4f}")
     if max_diff > INVARIANCE_TOLERANCE:
@@ -213,9 +206,8 @@ def main() -> None:
         }
 
     output = {
-        "note": "Recomputed from the OOF fold membership that already produced oof_rf_score in "
-                "01_load_and_score.py. No retraining. combined_score is built from the CALIBRATED "
-                "score, matching what 02_build_queue.py actually deploys — see script docstring.",
+        "note": "Recomputed from the OOF fold membership that already produced oof_rf_score in 01_load_and_score.py. "
+                "No retraining. combined_score is built from the CALIBRATED score, matching what 02_build_queue.py actually deploys — see script docstring.",
         "base_rate": base_rate,
         "n_folds": N_FOLDS,
         "ks": KS,
