@@ -151,10 +151,7 @@ def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 
 def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
-    """Adds oof_rf_score (raw), fold_id (which fold scored each row), and
-    oof_rf_score_calibrated (pooled Platt scaling across all folds —
-    see w07_pipeline_utils.calibrate_scores for why this exists).
-    """
+    """Adds oof_rf_score (raw), fold_id (which fold scored each row), and oof_rf_score_calibrated (pooled Platt scaling across all folds — see w07_pipeline_utils.calibrate_scores for why this exists)."""
     X = model_df[FEATURE_COLS].astype(float)
     y = model_df["is_declining_proxy"].astype(int)
     groups = model_df["client_hash_id"]
