@@ -120,7 +120,7 @@ def build_metrics(model_df: pd.DataFrame, thresholds: dict) -> dict:
     return {
         "population_size": int(len(model_df)),
         "seed": 42,
-        "score_used": "oof_rf_score_calibrated (Platt scaling, fit per fold) — see w07_pipeline_utils.py",
+        "score_used": "oof_rf_score_calibrated (percentile rank within fold) — see w07_pipeline_utils.py",
         "thresholds": thresholds,
         "archetype_counts": model_df["archetype"].value_counts().to_dict(),
         "rule_agreement_mean_scores": rule_agreement_means,

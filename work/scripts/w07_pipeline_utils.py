@@ -17,7 +17,6 @@ from typing import Any
 
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LogisticRegression
 
 # --- Paths -------------------------------------------------------------
 # This file lives at work/scripts/w07_pipeline_utils.py, so parents[2] is the repo root.
@@ -112,27 +111,22 @@ FEATURE_COLS = [
 
 # --- Cross-fold calibration (added during capstone validation) -------------
 # 01_load_and_score.py trains 5 separate RF models, one per fold, and pools their out-of-fold scores
-# into one column. Two pooled fixes were tried (isotonic, then pooled Platt scaling) and both failed
-# for the same reason: a single curve fit on raw score alone can't tell which fold a row came from, so
-# it can't apply an opposite correction to two folds that need opposite corrections. Confirmed on the
-# real population — barely moved the skew (see work/outputs/fold_representation_check.json).
+# into one column. Three fixes were tried. Pooled isotonic and pooled Platt scaling both fit one curve
+# on raw score alone, which can't tell which fold a row came from, so neither could apply opposite
+# corrections to two folds that needed opposite corrections. Per-fold Platt scaling fixed that (each
+# fold's mean score matched its own base rate exactly) but introduced a new problem: 5 independent
+# curves fit on ~30k rows each can come out a different steepness, so one fold's top scores still ran
+# hotter than the rest, just a different fold each time.
 #
-# calibrate_scores() below fits Platt scaling separately per fold, using only that fold's own
-# out-of-fold scores and labels, then applies it only to that fold's own rows. This uses fold identity
-# directly, so it can fix bias that's specific to one fold. No leakage: each fold's scores are already
-# out-of-fold, so calibrating against that fold's own labels doesn't touch its own training data.
-def calibrate_scores(raw_scores: pd.Series, y: pd.Series, fold_id: pd.Series) -> np.ndarray:
-    """Platt scaling fit separately per fold. See the note above this function for why."""
-    raw = raw_scores.values
-    labels = y.values
-    folds = fold_id.values
-    calibrated = np.zeros(len(raw))
-    for fold in np.unique(folds):
-        mask = folds == fold
-        lr = LogisticRegression()
-        lr.fit(raw[mask].reshape(-1, 1), labels[mask])
-        calibrated[mask] = lr.predict_proba(raw[mask].reshape(-1, 1))[:, 1]
-    return calibrated
+# calibrate_scores() below skips fitting anything. It converts each fold's raw scores to a percentile
+# rank within that fold. No curve, no parameters, nothing to overfit or come out uneven between folds
+# — every fold's scores span 0 to 1 the same way, by construction. Cost: the result is a rank position,
+# not a probability. Worth a plain sentence in the paper's Methodology section.
+def calibrate_scores(raw_scores: pd.Series, fold_id: pd.Series) -> np.ndarray:
+    """Percentile rank within each fold. See the note above this function for why."""
+    df = pd.DataFrame({"raw": raw_scores.values, "fold_id": fold_id.values})
+    ranks = df.groupby("fold_id")["raw"].rank(pct=True, method="average")
+    return ranks.values
 
 
 # --- Queue ranking (w07, updated during capstone validation) ---------------
