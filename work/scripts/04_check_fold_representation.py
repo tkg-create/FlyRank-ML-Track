@@ -1,14 +1,20 @@
 """Check whether the top-K queue is disproportionately drawn from one GroupKFold fold.
 
-w06's error analysis found that pooling raw out-of-fold probabilities across 5 separately trained fold models does not produce a clean cross-client ranking. 
-One fold's model output systematically higher raw scores without being more accurate, so a pooled top-50 built by sorting all folds' scores together came out almost entirely made of that fold's rows.
+w06's error analysis found that pooling raw out-of-fold probabilities across 5 separately
+trained fold models does not produce a clean cross-client ranking. One fold's model output
+systematically higher raw scores without being more accurate, so a pooled top-50 built by
+sorting all folds' scores together came out almost entirely made of that fold's rows.
 
-That check was rerun on the real scored population and confirmed severe (one fold took 93-100% of the top-K at every K checked; see work/outputs/fold_representation_check.json from before the fix). 
-w07_pipeline_utils.calibrate_scores() was added to fix it, and 02_build_queue.py now uses the calibrated score for the deployed queue.
+That check was rerun on the real scored population and confirmed severe (one fold took
+93-100% of the top-K at every K checked; see work/outputs/fold_representation_check.json
+from before the fix). w07_pipeline_utils.calibrate_scores() was added to fix it, and
+02_build_queue.py now uses the calibrated score for the deployed queue.
 
-This script checks BOTH raw and calibrated side by side, so the fix's effect is visible in one run rather than needing a before/after diff across two separate runs.
+This script checks BOTH raw and calibrated side by side, so the fix's effect is visible in
+one run rather than needing a before/after diff across two separate runs.
 
-Requires fold_id and oof_rf_score_calibrated, both added to 01_load_and_score.py's output as part of this fix. Rerun 01 if the input file predates that change.
+Requires fold_id and oof_rf_score_calibrated, both added to 01_load_and_score.py's output
+as part of this fix. Rerun 01 if the input file predates that change.
 
 Usage:
     python work/scripts/04_check_fold_representation.py
@@ -140,7 +146,7 @@ def main() -> None:
         ("oof_rf_score_calibrated", "oof_rf_score_calibrated", None),
         ("combined_score (raw formula)", "combined_score_raw", None),
         ("combined_score (calibrated formula, real tiebreak — this is what's deployed)",
-         "combined_score_calibrated", "oof_rf_score_raw"),
+         "combined_score_calibrated", "oof_rf_score"),
     ]:
         print(f"\n[{label}]:")
         col_results = top_k_representation(model_df, col, tiebreak_col=tiebreak)
@@ -152,7 +158,9 @@ def main() -> None:
         representation_results[col] = col_results
 
     output = {
-        "note": "Raw vs. calibrated fold representation, checked side by side to confirm the calibration fix (w07_pipeline_utils.calibrate_scores) actually resolves the skew found in the pre-fix run of this script.",
+        "note": "Raw vs. calibrated fold representation, checked side by side to confirm the "
+                "calibration fix (w07_pipeline_utils.calibrate_scores) actually resolves the "
+                "skew found in the pre-fix run of this script.",
         "n_folds": N_FOLDS,
         "fold_pop_share": {str(int(f)): round(float(s), 3) for f, s in fold_pop_share.items()},
         "per_fold_calibration": calibration_results,
