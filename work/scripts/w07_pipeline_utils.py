@@ -3,8 +3,8 @@
 Paths, constants, and small reusable functions imported by 01_load_and_score.py, 02_build_queue.py,
 03_validate_combined_score.py, 04_check_fold_representation.py, and run_all.py.
 
-Every threshold and design choice below is a validated decision from w04-w07 — see each notebook for the full reasoning. 
-The one exception is calibrate_scores(), added during capstone validation to fix a
+Every threshold and design choice below is a validated decision from w04-w07 — see each notebook for
+the full reasoning. The one exception is calibrate_scores(), added during capstone validation to fix a
 problem w06 found but never resolved. Details near that function.
 """
 from __future__ import annotations
@@ -112,28 +112,27 @@ FEATURE_COLS = [
 
 # --- Cross-fold calibration (added during capstone validation) -------------
 # 01_load_and_score.py trains 5 separate RF models, one per fold, and pools their out-of-fold scores
-# into one column. That only works if all 5 models' scores mean the same thing. They don't — w06 found
-# one fold's model scoring systematically higher without being more accurate, confirmed again on the
-# real population (work/outputs/fold_representation_check.json): one fold took 93-100% of the top-K
-# queue at every K checked.
+# into one column. Two pooled fixes were tried (isotonic, then pooled Platt scaling) and both failed
+# for the same reason: a single curve fit on raw score alone can't tell which fold a row came from, so
+# it can't apply an opposite correction to two folds that need opposite corrections. Confirmed on the
+# real population — barely moved the skew (see work/outputs/fold_representation_check.json).
 #
-# First attempt was pooled isotonic regression. It fixed the bias but collapsed the score to 31 unique
-# values across 150,675 rows (one value covered 55% of the population) — a step function is fine for
-# probability estimation but destroys a score meant to rank rows or feed a threshold.
-#
-# calibrate_scores() below uses Platt scaling instead: one pooled logistic regression on the raw score.
-# Same fix, but a smooth curve instead of a step function, so it doesn't create fake ties. Real ties
-# (rows the forest scored identically, ~32,000 of 150,675) are handled by tie-breaking on
-# oof_rf_score_raw wherever this score is used to sort, not by this function.
-def calibrate_scores(raw_scores: pd.Series, y: pd.Series) -> np.ndarray:
-    """Platt scaling: pooled logistic regression calibration across all folds' OOF scores.
-
-    One shared monotonic curve from raw score to real outcome rate, fit across every row regardless of
-    fold. Replaces an earlier isotonic version — see the note above this function.
-    """
-    lr = LogisticRegression()
-    lr.fit(raw_scores.values.reshape(-1, 1), y)
-    return lr.predict_proba(raw_scores.values.reshape(-1, 1))[:, 1]
+# calibrate_scores() below fits Platt scaling separately per fold, using only that fold's own
+# out-of-fold scores and labels, then applies it only to that fold's own rows. This uses fold identity
+# directly, so it can fix bias that's specific to one fold. No leakage: each fold's scores are already
+# out-of-fold, so calibrating against that fold's own labels doesn't touch its own training data.
+def calibrate_scores(raw_scores: pd.Series, y: pd.Series, fold_id: pd.Series) -> np.ndarray:
+    """Platt scaling fit separately per fold. See the note above this function for why."""
+    raw = raw_scores.values
+    labels = y.values
+    folds = fold_id.values
+    calibrated = np.zeros(len(raw))
+    for fold in np.unique(folds):
+        mask = folds == fold
+        lr = LogisticRegression()
+        lr.fit(raw[mask].reshape(-1, 1), labels[mask])
+        calibrated[mask] = lr.predict_proba(raw[mask].reshape(-1, 1))[:, 1]
+    return calibrated
 
 
 # --- Queue ranking (w07, updated during capstone validation) ---------------

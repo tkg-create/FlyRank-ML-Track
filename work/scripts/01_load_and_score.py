@@ -151,7 +151,10 @@ def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
 
 
 def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
-    """Adds oof_rf_score (raw), fold_id (which fold scored each row), and oof_rf_score_calibrated (pooled Platt scaling across all folds — see w07_pipeline_utils.calibrate_scores for why this exists)."""
+    """Adds oof_rf_score (raw), fold_id (which fold scored each row), and
+    oof_rf_score_calibrated (per-fold Platt scaling — see
+    w07_pipeline_utils.calibrate_scores for why this exists).
+    """
     X = model_df[FEATURE_COLS].astype(float)
     y = model_df["is_declining_proxy"].astype(int)
     groups = model_df["client_hash_id"]
@@ -176,8 +179,8 @@ def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
     model_df["oof_rf_score"] = oof_rf
     model_df["fold_id"] = fold_id  # which fold's model scored this row — see 04_check_fold_representation.py
 
-    print("  Calibrating OOF scores (pooled Platt scaling, across all folds)...", flush=True)
-    model_df["oof_rf_score_calibrated"] = calibrate_scores(model_df["oof_rf_score"], y)
+    print("  Calibrating OOF scores (Platt scaling, fit separately per fold)...", flush=True)
+    model_df["oof_rf_score_calibrated"] = calibrate_scores(model_df["oof_rf_score"], y, model_df["fold_id"])
 
     return model_df
 
@@ -210,7 +213,7 @@ def main() -> None:
         "n_folds": N_FOLDS,
         "random_state": RANDOM_STATE,
         "feature_cols": FEATURE_COLS,
-        "calibration": "pooled Platt scaling (logistic regression) on oof_rf_score, see oof_rf_score_calibrated column",
+        "calibration": "Platt scaling fit separately per fold, see oof_rf_score_calibrated column",
         "output": display_path(output_path),
     })
 

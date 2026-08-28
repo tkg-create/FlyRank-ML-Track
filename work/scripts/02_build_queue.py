@@ -2,8 +2,11 @@
 
 Consolidates work from previous notebooks (archetype/confidence assignment, combined_score ranking) and output (metrics JSON, charts, report, local-only queue CSV).
 
-As of the capstone fix, this script uses the CALIBRATED score (oof_rf_score_calibrated, added by 01_load_and_score.py) for every downstream decision — archetypes, confidence, combined_score, the queue's sort order. 
-See w07_pipeline_utils.py's module-level note on calibrate_scores() for why. The original raw score is preserved as oof_rf_score_raw for audit, but nothing in this script's output is built from it.
+As of the capstone fix, this script uses the CALIBRATED score (oof_rf_score_calibrated,
+added by 01_load_and_score.py) for every downstream decision — archetypes, confidence,
+combined_score, the queue's sort order. See w07_pipeline_utils.py's module-level note on
+calibrate_scores() for why. The original raw score is preserved as oof_rf_score_raw for
+audit, but nothing in this script's output is built from it.
 
 Usage:
     python work/scripts/02_build_queue.py
@@ -48,9 +51,10 @@ def parse_args() -> argparse.Namespace:
 
 
 def use_calibrated_score(model_df: pd.DataFrame) -> pd.DataFrame:
-    """Swaps the calibrated score into the oof_rf_score column that every downstream function (assign_archetype, 
-    assign_confidence, combined_score) already reads, so none of that code needed to change. 
-    Raw score is kept as oof_rf_score_raw for audit."""
+    """Swaps the calibrated score into the oof_rf_score column that every downstream
+    function (assign_archetype, assign_confidence, combined_score) already reads, so none
+    of that code needed to change. Raw score is kept as oof_rf_score_raw for audit.
+    """
     if "oof_rf_score_calibrated" not in model_df.columns:
         raise ValueError(
             "oof_rf_score_calibrated column not found. This CSV predates the calibration "
@@ -84,8 +88,9 @@ def build_queue(model_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
 
     model_df["combined_score"] = model_df["oof_rf_score"] + BASELINE_NUDGE_WEIGHT * model_df["baseline_score"]
 
-    # Tiebreak by the raw score, not sort_values' default (row order) — defensive: Platt scaling shouldn't create wide ties the way isotonic did, 
-    # but any genuine tie (e.g. two rows the forest scored identically) should break on real signal, not incidental order.
+    # Tiebreak by the raw score, not sort_values' default (row order) — defensive: Platt
+    # scaling shouldn't create wide ties the way isotonic did, but any genuine tie (e.g. two
+    # rows the forest scored identically) should break on real signal, not incidental order.
     ranked_queue = model_df.sort_values(
         ["combined_score", "oof_rf_score_raw"], ascending=[False, False]
     ).reset_index(drop=True)
@@ -115,7 +120,7 @@ def build_metrics(model_df: pd.DataFrame, thresholds: dict) -> dict:
     return {
         "population_size": int(len(model_df)),
         "seed": 42,
-        "score_used": "oof_rf_score_calibrated (pooled isotonic) — see w07_pipeline_utils.py",
+        "score_used": "oof_rf_score_calibrated (Platt scaling, fit per fold) — see w07_pipeline_utils.py",
         "thresholds": thresholds,
         "archetype_counts": model_df["archetype"].value_counts().to_dict(),
         "rule_agreement_mean_scores": rule_agreement_means,
@@ -161,9 +166,11 @@ def write_report(ranked_queue: pd.DataFrame, metrics: dict, report_path: Path) -
 
 Scored population: {metrics['population_size']:,} pages, {metrics.get('label_window', 'March 2026')}, `is_declining_proxy` label.
 
-Queue is ranked by combined_score, built from the calibrated model score (see work/outputs/fold_representation_check.json for why calibration was added — 
-pooling 5 separately trained fold models' raw scores without it was found to skew the queue toward whichever fold happened to produce the highest raw scores, 
-not toward the pages most likely to actually be declining).
+Queue is ranked by combined_score, built from the calibrated model score (see
+work/outputs/fold_representation_check.json for why calibration was added — pooling 5
+separately trained fold models' raw scores without it was found to skew the queue toward
+whichever fold happened to produce the highest raw scores, not toward the pages most likely
+to actually be declining).
 
 ## Archetype breakdown
 
