@@ -1,0 +1,245 @@
+{
+  "fold_pop_share": {
+    "1": 0.2,
+    "2": 0.2,
+    "3": 0.201,
+    "4": 0.2,
+    "5": 0.2
+  },
+  "n_folds": 5,
+  "note": "Raw vs. calibrated fold representation, checked side by side to confirm the calibration fix (w07_pipeline_utils.calibrate_scores) actually resolves the skew found in the pre-fix run of this script.",
+  "per_fold_calibration": {
+    "calibrated": [
+      {
+        "fold_base_rate": 0.4358,
+        "fold_id": 1,
+        "mean_score": 0.5,
+        "n_rows": 30092,
+        "score_minus_base_rate": 0.0642
+      },
+      {
+        "fold_base_rate": 0.478,
+        "fold_id": 2,
+        "mean_score": 0.5,
+        "n_rows": 30086,
+        "score_minus_base_rate": 0.022
+      },
+      {
+        "fold_base_rate": 0.391,
+        "fold_id": 3,
+        "mean_score": 0.5,
+        "n_rows": 30324,
+        "score_minus_base_rate": 0.109
+      },
+      {
+        "fold_base_rate": 0.5601,
+        "fold_id": 4,
+        "mean_score": 0.5,
+        "n_rows": 30086,
+        "score_minus_base_rate": -0.0601
+      },
+      {
+        "fold_base_rate": 0.3276,
+        "fold_id": 5,
+        "mean_score": 0.5,
+        "n_rows": 30087,
+        "score_minus_base_rate": 0.1725
+      }
+    ],
+    "raw": [
+      {
+        "fold_base_rate": 0.4358,
+        "fold_id": 1,
+        "mean_score": 0.4278,
+        "n_rows": 30092,
+        "score_minus_base_rate": -0.0081
+      },
+      {
+        "fold_base_rate": 0.478,
+        "fold_id": 2,
+        "mean_score": 0.4163,
+        "n_rows": 30086,
+        "score_minus_base_rate": -0.0616
+      },
+      {
+        "fold_base_rate": 0.391,
+        "fold_id": 3,
+        "mean_score": 0.4257,
+        "n_rows": 30324,
+        "score_minus_base_rate": 0.0347
+      },
+      {
+        "fold_base_rate": 0.5601,
+        "fold_id": 4,
+        "mean_score": 0.412,
+        "n_rows": 30086,
+        "score_minus_base_rate": -0.1481
+      },
+      {
+        "fold_base_rate": 0.3276,
+        "fold_id": 5,
+        "mean_score": 0.4803,
+        "n_rows": 30087,
+        "score_minus_base_rate": 0.1528
+      }
+    ]
+  },
+  "top_k_representation": {
+    "oof_rf_score": {
+      "100": {
+        "counts_by_fold": {
+          "1": 0,
+          "2": 7,
+          "3": 0,
+          "4": 0,
+          "5": 93
+        },
+        "expected_share": 0.2,
+        "most_overrepresented_fold": 5,
+        "most_overrepresented_share": 0.93,
+        "share_by_fold": {
+          "1": 0.0,
+          "2": 0.07,
+          "3": 0.0,
+          "4": 0.0,
+          "5": 0.93
+        }
+      },
+      "20": {
+        "counts_by_fold": {
+          "1": 0,
+          "2": 0,
+          "3": 0,
+          "4": 0,
+          "5": 20
+        },
+        "expected_share": 0.2,
+        "most_overrepresented_fold": 5,
+        "most_overrepresented_share": 1.0,
+        "share_by_fold": {
+          "1": 0.0,
+          "2": 0.0,
+          "3": 0.0,
+          "4": 0.0,
+          "5": 1.0
+        }
+      },
+      "200": {
+        "counts_by_fold": {
+          "1": 0,
+          "2": 14,
+          "3": 0,
+          "4": 0,
+          "5": 186
+        },
+        "expected_share": 0.2,
+        "most_overrepresented_fold": 5,
+        "most_overrepresented_share": 0.93,
+        "share_by_fold": {
+          "1": 0.0,
+          "2": 0.07,
+          "3": 0.0,
+          "4": 0.0,
+          "5": 0.93
+        }
+      },
+      "50": {
+        "counts_by_fold": {
+          "1": 0,
+          "2": 3,
+          "3": 0,
+          "4": 0,
+          "5": 47
+        },
+        "expected_share": 0.2,
+        "most_overrepresented_fold": 5,
+        "most_overrepresented_share": 0.94,
+        "share_by_fold": {
+          "1": 0.0,
+          "2": 0.06,
+          "3": 0.0,
+          "4": 0.0,
+          "5": 0.94
+        }
+      }
+    },
+    "oof_rf_score_calibrated": {
+      "100": {
+        "counts_by_fold": {
+          "1": 20,
+          "2": 20,
+          "3": 20,
+          "4": 20,
+          "5": 20
+        },
+        "expected_share": 0.2,
+        "most_overrepresented_fold": 1,
+        "most_overrepresented_share": 0.2,
+        "share_by_fold": {
+          "1": 0.2,
+          "2": 0.2,
+          "3": 0.2,
+          "4": 0.2,
+          "5": 0.2
+        }
+      },
+      "20": {
+        "counts_by_fold": {
+          "1": 4,
+          "2": 4,
+          "3": 4,
+          "4": 4,
+          "5": 4
+        },
+        "expected_share": 0.2,
+        "most_overrepresented_fold": 1,
+        "most_overrepresented_share": 0.2,
+        "share_by_fold": {
+          "1": 0.2,
+          "2": 0.2,
+          "3": 0.2,
+          "4": 0.2,
+          "5": 0.2
+        }
+      },
+      "200": {
+        "counts_by_fold": {
+          "1": 40,
+          "2": 40,
+          "3": 40,
+          "4": 40,
+          "5": 40
+        },
+        "expected_share": 0.2,
+        "most_overrepresented_fold": 1,
+        "most_overrepresented_share": 0.2,
+        "share_by_fold": {
+          "1": 0.2,
+          "2": 0.2,
+          "3": 0.2,
+          "4": 0.2,
+          "5": 0.2
+        }
+      },
+      "50": {
+        "counts_by_fold": {
+          "1": 10,
+          "2": 10,
+          "3": 10,
+          "4": 10,
+          "5": 10
+        },
+        "expected_share": 0.2,
+        "most_overrepresented_fold": 1,
+        "most_overrepresented_share": 0.2,
+        "share_by_fold": {
+          "1": 0.2,
+          "2": 0.2,
+          "3": 0.2,
+          "4": 0.2,
+          "5": 0.2
+        }
+      }
+    }
+  }
+}
