@@ -1,7 +1,7 @@
 """Shared configuration and helpers used by every script in this pipeline.
 
 Paths, constants, and small reusable functions imported by 01_load_and_score.py, 02_build_queue.py,
-03_validate_combined_score.py, 04_check_fold_representation.py, and run_all.py.
+03_validate_deployed_score.py, 04_check_fold_representation.py, and run_all.py.
 
 Every threshold and design choice below is a validated decision from w04-w07 — see each notebook for
 the full reasoning. The one exception is calibrate_scores(), added during capstone validation to fix a
@@ -129,22 +129,19 @@ def calibrate_scores(raw_scores: pd.Series, fold_id: pd.Series) -> np.ndarray:
     return ranks.values
 
 
-# --- Queue ranking (w07, updated during capstone validation) ---------------
-# combined_score = oof_rf_score + BASELINE_NUDGE_WEIGHT * baseline_score
+# --- Queue ranking (capstone validation) ---------------
+# The queue is ranked by oof_rf_score_calibrated alone. No rule-based nudge.
 #
-# "oof_rf_score" here and downstream (assign_archetype, assign_confidence) means the CALIBRATED score
-# — 02_build_queue.py swaps it in under that name after loading. Original score kept as
-# oof_rf_score_raw for audit.
+# w07 originally used combined_score = oof_rf_score + BASELINE_NUDGE_WEIGHT * baseline_score, an
+# additive nudge chosen over two rejected alternatives (tier-first sort, 50/50 percentile blend).
+# During capstone validation, once oof_rf_score was replaced with a fold-fair calibrated score, every
+# nudge variant tested (the original additive nudge, smaller weights, tier-first, percentile blend,
+# proportional lift) reintroduced fold skew the calibration fix was meant to remove. Dropping the
+# nudge entirely was the only tested option with clean fold fairness (~20% per fold at every K) that
+# still beat the rule at K=50 (see work/outputs/capstone_precision_at_k.json).
 #
-# Two other combination methods were tried and rejected:
-#   1. Tier-first sort (rule tier, then oof_rf_score to break ties). Rejected — the model could never
-#      move a row out of its rule tier, which ignores w06's finding that RF beats the rule at K=50+.
-#   2. 50/50 percentile blend. Rejected — baseline_score only has 4 values, so this just rebuilds the
-#      same tier walls as option 1.
-# The additive nudge avoids both: the rule can't build a wall the model can't cross, but can still move
-# close scores.
-BASELINE_NUDGE_WEIGHT = 0.03
-
+# The rule still fully drives assign_archetype and the action label on every row — this only removes
+# its influence on sort order within the queue.
 # --- Archetype / confidence thresholds (w07) --------------------------------
 # All percentile-based off the scored population itself, not fixed numbers. Tuned by hand (w07) —
 # 0.25/0.05 is where both thresholds still discriminate meaningfully without flagging most of the
@@ -158,7 +155,8 @@ BOUNDARY_MARGIN_PCT = 0.05      # confidence: how close to high_score_cut counts
 def assign_archetype(row: pd.Series, high_score_cut: float, large_swing_cut: float) -> tuple[int, str, str]:
     """Returns (priority_tier, archetype, action). See w07 Section 1.
 
-    priority_tier is descriptive only, not the sort order (that's combined_score). row["oof_rf_score"]
+    priority_tier is descriptive only, not the sort order — the queue sorts on oof_rf_score directly.
+    row["oof_rf_score"]
     is whatever the caller put there — the calibrated score, as set by 02_build_queue.py.
     """
     if row["zero_clicks_at_position"] == 1 and row["position_worsened"] == 1:

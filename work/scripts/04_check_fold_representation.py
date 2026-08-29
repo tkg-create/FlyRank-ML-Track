@@ -7,11 +7,11 @@ sorting all folds' scores together came out almost entirely made of that fold's 
 
 That check was rerun on the real scored population and confirmed severe (one fold took
 93-100% of the top-K at every K checked; see work/outputs/fold_representation_check.json
-from before the fix). w07_pipeline_utils.calibrate_scores() was added to fix it, and
-02_build_queue.py now uses the calibrated score for the deployed queue.
+from before the fix). w07_pipeline_utils.calibrate_scores() fixes it, and 02_build_queue.py
+now ranks the deployed queue on the calibrated score directly.
 
-This script checks BOTH raw and calibrated side by side, so the fix's effect is visible in
-one run rather than needing a before/after diff across two separate runs.
+This script checks raw and calibrated side by side, so the fix's effect is visible in one
+run rather than needing a before/after diff across two separate runs.
 
 Requires fold_id and oof_rf_score_calibrated, both added to 01_load_and_score.py's output
 as part of this fix. Rerun 01 if the input file predates that change.
@@ -25,12 +25,10 @@ import argparse
 import sys
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from w07_pipeline_utils import (  # noqa: E402
-    BASELINE_NUDGE_WEIGHT,
     N_FOLDS,
     OUTPUT_DIR,
     PROCESSED_DIR,
@@ -43,12 +41,6 @@ DEFAULT_INPUT = PROCESSED_DIR / "w07_scored_population.csv"
 DEFAULT_OUTPUT = OUTPUT_DIR / "fold_representation_check.json"
 
 KS = [20, 50, 100, 200]
-SCORE_COLS = {
-    "oof_rf_score_raw": "oof_rf_score",
-    "oof_rf_score_calibrated": "oof_rf_score_calibrated",
-    "combined_score_raw": None,        # built below from oof_rf_score
-    "combined_score_calibrated": None,  # built below from oof_rf_score_calibrated
-}
 
 
 def parse_args() -> argparse.Namespace:
@@ -74,14 +66,11 @@ def per_fold_calibration_table(model_df: pd.DataFrame, score_col: str, y: pd.Ser
     return rows
 
 
-def top_k_representation(model_df: pd.DataFrame, score_col: str, tiebreak_col: str | None = None) -> dict:
+def top_k_representation(model_df: pd.DataFrame, score_col: str) -> dict:
     expected_share = 1.0 / N_FOLDS
     col_results = {}
     for k in KS:
-        if tiebreak_col:
-            top_k = model_df.sort_values([score_col, tiebreak_col], ascending=[False, False]).head(k)
-        else:
-            top_k = model_df.sort_values(score_col, ascending=False).head(k)
+        top_k = model_df.sort_values(score_col, ascending=False).head(k)
         observed_counts = top_k["fold_id"].value_counts().reindex(range(1, N_FOLDS + 1), fill_value=0)
         observed_share = observed_counts / k
         max_fold = observed_share.idxmax()
@@ -113,8 +102,6 @@ def main() -> None:
             )
 
     y = model_df["is_declining_proxy"].astype(int)
-    model_df["combined_score_raw"] = model_df["oof_rf_score"] + BASELINE_NUDGE_WEIGHT * model_df["baseline_score"]
-    model_df["combined_score_calibrated"] = model_df["oof_rf_score_calibrated"] + BASELINE_NUDGE_WEIGHT * model_df["baseline_score"]
 
     fold_pop_share = model_df["fold_id"].value_counts(normalize=True).sort_index()
 
@@ -141,15 +128,12 @@ def main() -> None:
     print("=" * 70)
 
     representation_results = {}
-    for label, col, tiebreak in [
-        ("oof_rf_score (raw)", "oof_rf_score", None),
-        ("oof_rf_score_calibrated", "oof_rf_score_calibrated", None),
-        ("combined_score (raw formula)", "combined_score_raw", None),
-        ("combined_score (calibrated formula, real tiebreak — this is what's deployed)",
-         "combined_score_calibrated", "oof_rf_score"),
+    for label, col in [
+        ("oof_rf_score (raw)", "oof_rf_score"),
+        ("oof_rf_score_calibrated (this is what's deployed)", "oof_rf_score_calibrated"),
     ]:
         print(f"\n[{label}]:")
-        col_results = top_k_representation(model_df, col, tiebreak_col=tiebreak)
+        col_results = top_k_representation(model_df, col)
         for k in KS:
             r = col_results[str(k)]
             counts_str = ", ".join(f"fold{f}={r['counts_by_fold'][str(f)]}" for f in range(1, N_FOLDS + 1))

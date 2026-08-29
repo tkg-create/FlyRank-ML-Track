@@ -1,8 +1,10 @@
 """Run the full w07 pipeline: load/score, then build the ranked queue.
 
 Only 01 and 02 run here — those are the two steps that produce the deployable queue.
-03_validate_combined_score.py and 04_check_fold_representation.py are validation/audit scripts: they consume this pipeline's output and check it, they don't feed anything back into what gets built. 
-Run them separately, after this, when you want to (re)validate rather than every time you rebuild the queue.
+03_validate_deployed_score.py and 04_check_fold_representation.py are validation/audit
+scripts: they consume this pipeline's output and check it, they don't feed anything back
+into what gets built. Run them separately, after this, when you want to (re)validate rather
+than every time you rebuild the queue.
 
 Prompts for the HF token once (getpass, not hardcoded), sets it in the environment so every subprocess step inherits it, then runs each step in order.
 
@@ -30,14 +32,14 @@ SCRIPTS_DIR = ROOT / "work" / "scripts"
 
 STEPS = [
     ("01_load_and_score.py", "Load — warehouse features, baseline rule, out-of-fold RF scoring, calibration"),
-    ("02_build_queue.py", "Build queue — archetypes, confidence, combined score (calibrated), exports"),
+    ("02_build_queue.py", "Build queue — archetypes, confidence, ranked by calibrated score, exports"),
 ]
 
 
 def run_step(index: int, script: str, label: str) -> None:
     print(f"\n{'=' * 70}\n▶ Step {index}/{len(STEPS)} — {label}\n{'=' * 70}", flush=True)
-    # "-u" forces the child process's stdout/stderr to be unbuffered. 
-    # Without it, Python fully buffers output when stdout isn't a real terminal (true for any subprocess),
+    # "-u" forces the child process's stdout/stderr to be unbuffered. Without it, 
+    # Python fully buffers output when stdout isn't a real terminal (true for any subprocess),
     # so print() statements inside 01/02 would queue up invisibly and only appear in a burst at the end instead of streaming.
     subprocess.run([sys.executable, "-u", str(SCRIPTS_DIR / script)], cwd=ROOT, check=True)
 
@@ -60,7 +62,9 @@ def main() -> None:
         print(f"Report: {OUTPUT_DIR / 'w07_report.md'}")
         print(f"Charts: {OUTPUT_DIR / 'charts'}")
         print(
-            "\nQueue built. Run 03_validate_combined_score.py and 04_check_fold_representation.py separately to (re)validate it — not run here, see this script's docstring."
+            "\nQueue built. Run 03_validate_deployed_score.py and "
+            "04_check_fold_representation.py separately to (re)validate it — not run here, "
+            "see this script's docstring."
         )
 
 

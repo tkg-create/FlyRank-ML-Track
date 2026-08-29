@@ -1,12 +1,10 @@
 """Build the ranked action queue from a scored population and export the paper-facing artifacts.
 
-Consolidates work from previous notebooks (archetype/confidence assignment, combined_score ranking) and output (metrics JSON, charts, report, local-only queue CSV).
+Consolidates work from previous notebooks (archetype/confidence assignment, queue ranking) and output (metrics JSON, charts, report, local-only queue CSV).
 
-As of the capstone fix, this script uses the CALIBRATED score (oof_rf_score_calibrated,
-added by 01_load_and_score.py) for every downstream decision — archetypes, confidence,
-combined_score, the queue's sort order. See w07_pipeline_utils.py's module-level note on
-calibrate_scores() for why. The original raw score is preserved as oof_rf_score_raw for
-audit, but nothing in this script's output is built from it.
+The queue is ranked by oof_rf_score_calibrated alone, no rule-based nudge — see
+w07_pipeline_utils.py's module-level note for why. The original raw score is preserved as
+oof_rf_score_raw for audit and as a tiebreak.
 
 Usage:
     python work/scripts/02_build_queue.py
@@ -23,7 +21,6 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from w07_pipeline_utils import (  # noqa: E402
-    BASELINE_NUDGE_WEIGHT,
     BOUNDARY_MARGIN_PCT,
     CHART_DIR,
     HIGH_SCORE_PERCENTILE,
@@ -52,8 +49,8 @@ def parse_args() -> argparse.Namespace:
 
 def use_calibrated_score(model_df: pd.DataFrame) -> pd.DataFrame:
     """Swaps the calibrated score into the oof_rf_score column that every downstream
-    function (assign_archetype, assign_confidence, combined_score) already reads, so none
-    of that code needed to change. Raw score is kept as oof_rf_score_raw for audit.
+    function (assign_archetype, assign_confidence) already reads, so none of that code
+    needed to change. Raw score is kept as oof_rf_score_raw for audit and as a tiebreak.
     """
     if "oof_rf_score_calibrated" not in model_df.columns:
         raise ValueError(
@@ -86,13 +83,11 @@ def build_queue(model_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     )
     print("  Sorting ranked queue...", flush=True)
 
-    model_df["combined_score"] = model_df["oof_rf_score"] + BASELINE_NUDGE_WEIGHT * model_df["baseline_score"]
-
-    # Tiebreak by the raw score, not sort_values' default (row order) — defensive: Platt
-    # scaling shouldn't create wide ties the way isotonic did, but any genuine tie (e.g. two
-    # rows the forest scored identically) should break on real signal, not incidental order.
+    # Tiebreak by the raw score, not sort_values' default (row order) — defensive: percentile
+    # rank shouldn't create wide ties, but any genuine tie (two rows the forest scored
+    # identically) should break on real signal, not incidental order.
     ranked_queue = model_df.sort_values(
-        ["combined_score", "oof_rf_score_raw"], ascending=[False, False]
+        ["oof_rf_score", "oof_rf_score_raw"], ascending=[False, False]
     ).reset_index(drop=True)
 
     thresholds = {
@@ -166,11 +161,10 @@ def write_report(ranked_queue: pd.DataFrame, metrics: dict, report_path: Path) -
 
 Scored population: {metrics['population_size']:,} pages, {metrics.get('label_window', 'March 2026')}, `is_declining_proxy` label.
 
-Queue is ranked by combined_score, built from the calibrated model score (see
-work/outputs/fold_representation_check.json for why calibration was added — pooling 5
-separately trained fold models' raw scores without it was found to skew the queue toward
-whichever fold happened to produce the highest raw scores, not toward the pages most likely
-to actually be declining).
+Queue is ranked by the calibrated model score alone, no rule-based nudge (see
+work/outputs/fold_representation_check.json and work/outputs/capstone_precision_at_k.json
+for why — every combination method tested reintroduced fold skew, so the queue uses the
+model score directly).
 
 ## Archetype breakdown
 
@@ -204,7 +198,7 @@ to actually be declining).
 ## Top 20 queue preview
 
 """
-    top20 = ranked_queue.head(20)[["content_hash_id", "archetype", "action", "confidence", "combined_score"]]
+    top20 = ranked_queue.head(20)[["content_hash_id", "archetype", "action", "confidence", "oof_rf_score"]]
     try:
         report += top20.to_markdown(index=False)
     except ImportError:
