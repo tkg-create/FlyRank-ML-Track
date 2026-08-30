@@ -1,10 +1,14 @@
 """Build the ranked action queue from a scored population and export the paper-facing artifacts.
 
-Consolidates work from previous notebooks (archetype/confidence assignment, queue ranking) and output (metrics JSON, charts, report, local-only queue CSV).
+Consolidates work from previous notebooks (archetype/coverage assignment, queue ranking) and output (metrics JSON, charts, report, local-only queue CSV).
 
 The queue is ranked by oof_rf_score_calibrated alone, no rule-based nudge — see
 w07_pipeline_utils.py's module-level note for why. The original raw score is preserved as
 oof_rf_score_raw for audit and as a tiebreak.
+
+The per-row tier assigned here was originally called "confidence." Renamed to "coverage"
+during capstone validation after a check found low-tier rows had a higher real decline rate
+than high-tier rows — see w07_pipeline_utils.py's note near assign_coverage().
 
 Usage:
     python work/scripts/02_build_queue.py
@@ -29,7 +33,7 @@ from w07_pipeline_utils import (  # noqa: E402
     OUTPUT_DIR,
     PROCESSED_DIR,
     assign_archetype,
-    assign_confidence,
+    assign_coverage,
     display_path,
     ensure_dirs,
     write_json,
@@ -49,7 +53,7 @@ def parse_args() -> argparse.Namespace:
 
 def use_calibrated_score(model_df: pd.DataFrame) -> pd.DataFrame:
     """Swaps the calibrated score into the oof_rf_score column that every downstream
-    function (assign_archetype, assign_confidence) already reads, so none of that code
+    function (assign_archetype, assign_coverage) already reads, so none of that code
     needed to change. Raw score is kept as oof_rf_score_raw for audit and as a tiebreak.
     """
     if "oof_rf_score_calibrated" not in model_df.columns:
@@ -76,9 +80,9 @@ def build_queue(model_df: pd.DataFrame) -> tuple[pd.DataFrame, dict]:
     )
     model_df = model_df.copy()
     model_df[["priority_tier", "archetype", "action"]] = archetype_info
-    print("  Assigning confidence...", flush=True)
-    model_df["confidence"] = model_df.apply(
-        lambda row: assign_confidence(row, low_data_cut, high_score_cut, boundary_margin),
+    print("  Assigning coverage...", flush=True)
+    model_df["coverage"] = model_df.apply(
+        lambda row: assign_coverage(row, low_data_cut, high_score_cut, boundary_margin),
         axis=1,
     )
     print("  Sorting ranked queue...", flush=True)
@@ -119,8 +123,8 @@ def build_metrics(model_df: pd.DataFrame, thresholds: dict) -> dict:
         "thresholds": thresholds,
         "archetype_counts": model_df["archetype"].value_counts().to_dict(),
         "rule_agreement_mean_scores": rule_agreement_means,
-        "confidence_split": model_df["confidence"].value_counts().to_dict(),
-        "confidence_low_pct": round(float((model_df["confidence"] == "low").mean()), 3),
+        "coverage_split": model_df["coverage"].value_counts().to_dict(),
+        "coverage_low_pct": round(float((model_df["coverage"] == "low").mean()), 3),
         "model_only_catch_caution": {
             "flagged": caution_count,
             "total": model_only_total,
@@ -145,12 +149,12 @@ def make_charts(model_df: pd.DataFrame, chart_dir: Path) -> None:
     plt.close(fig)
 
     fig, ax = plt.subplots(figsize=(6, 4))
-    conf_counts = model_df["confidence"].value_counts().reindex(["high", "low"])
-    ax.bar(conf_counts.index, conf_counts.values, color="#6F4E7C")
-    ax.set_title("Confidence split")
+    cov_counts = model_df["coverage"].value_counts().reindex(["high", "low"])
+    ax.bar(cov_counts.index, cov_counts.values, color="#6F4E7C")
+    ax.set_title("Data coverage mix")
     ax.set_ylabel("Rows")
     plt.tight_layout()
-    plt.savefig(chart_dir / "confidence_mix.svg")
+    plt.savefig(chart_dir / "coverage_mix.svg")
     plt.close(fig)
 
 
@@ -174,12 +178,16 @@ model score directly).
     for archetype, count in ranked_queue["archetype"].value_counts().items():
         report += f"| `{archetype}` | {count:,} | {action_by_archetype[archetype]} |\n"
 
-    confidence_counts = metrics["confidence_split"]
+    coverage_counts = metrics["coverage_split"]
     report += f"""
-## Confidence split
+## Data coverage split
 
-- High: {confidence_counts.get('high', 0):,}
-- Low: {confidence_counts.get('low', 0):,} ({metrics['confidence_low_pct']:.1%})
+This tier was originally called "confidence." Renamed after a check found low-tier rows
+have a HIGHER real decline rate than high-tier rows in every archetype — it tracks data
+volume and score-boundary proximity, not reliability. See Limitations.
+
+- High: {coverage_counts.get('high', 0):,}
+- Low: {coverage_counts.get('low', 0):,} ({metrics['coverage_low_pct']:.1%})
 
 ## Rule-agreement check (model score vs. rule severity, rule-only archetypes)
 
@@ -198,7 +206,7 @@ model score directly).
 ## Top 20 queue preview
 
 """
-    top20 = ranked_queue.head(20)[["content_hash_id", "archetype", "action", "confidence", "oof_rf_score"]]
+    top20 = ranked_queue.head(20)[["content_hash_id", "archetype", "action", "coverage", "oof_rf_score"]]
     try:
         report += top20.to_markdown(index=False)
     except ImportError:
@@ -215,7 +223,7 @@ See the source notebook (work/notebooks/w07_action_playbook.ipynb) for intended 
 
 - `work/outputs/w07_metrics.json`
 - `work/outputs/charts/archetype_mix.svg`
-- `work/outputs/charts/confidence_mix.svg`
+- `work/outputs/charts/coverage_mix.svg`
 - `work/data/processed/w07_ranked_queue.csv` (local only — gitignored, not committed;
   regenerate by rerunning work/scripts/run_all.py rather than expecting this file to
   exist in a fresh clone)

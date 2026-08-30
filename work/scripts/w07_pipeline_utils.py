@@ -142,14 +142,21 @@ def calibrate_scores(raw_scores: pd.Series, fold_id: pd.Series) -> np.ndarray:
 #
 # The rule still fully drives assign_archetype and the action label on every row — this only removes
 # its influence on sort order within the queue.
-# --- Archetype / confidence thresholds (w07) --------------------------------
+# --- Archetype / coverage thresholds (w07, renamed during capstone validation) -----------
 # All percentile-based off the scored population itself, not fixed numbers. Tuned by hand (w07) —
 # 0.25/0.05 is where both thresholds still discriminate meaningfully without flagging most of the
-# queue as low-confidence or collapsing model_only_catch into "basically all low-confidence."
+# queue as low-coverage or collapsing model_only_catch into "basically all low-coverage."
+#
+# This tier was originally called "confidence." A check during capstone validation compared it
+# against real outcomes and found low-tier rows had a HIGHER actual decline rate than high-tier rows
+# in every archetype — the opposite of what "confidence" implies. The underlying logic (data volume,
+# distance from the score threshold) was never wrong for what it measures, only for what it was
+# called. Renamed to "coverage" rather than rebuilt, since a real outcome-grounded confidence measure
+# is new design work, not a quick fix — see Limitations.
 HIGH_SCORE_PERCENTILE = 0.90    # model_only_catch: top decile of oof_rf_score among unflagged rows
 LARGE_SWING_PERCENTILE = 0.90   # caution flag: top decile of |position_change|
-LOW_DATA_PERCENTILE = 0.25      # confidence: bottom quartile of total_impressions_full
-BOUNDARY_MARGIN_PCT = 0.05      # confidence: how close to high_score_cut counts as "too close to call"
+LOW_DATA_PERCENTILE = 0.25      # coverage: bottom quartile of total_impressions_full
+BOUNDARY_MARGIN_PCT = 0.05      # coverage: how close to high_score_cut counts as "too close to call"
 
 
 def assign_archetype(row: pd.Series, high_score_cut: float, large_swing_cut: float) -> tuple[int, str, str]:
@@ -178,13 +185,15 @@ def assign_archetype(row: pd.Series, high_score_cut: float, large_swing_cut: flo
     # candidate signal, session_rate, was rejected in w04 as confounded. Named gap, not an oversight.
 
 
-def assign_confidence(
+def assign_coverage(
     row: pd.Series,
     low_data_cut: float,
     high_score_cut: float,
     boundary_margin: float,
 ) -> str:
-    """Returns 'low' or 'high'. See w07 Section 1 and the confidence tuning pass.
+    """Returns 'low' or 'high'. Data volume and score-boundary proximity only — not validated
+    against real outcomes, and a check found it doesn't track them. See the note above and
+    Limitations. Was named 'confidence' before that check; renamed, not rebuilt.
 
     row["oof_rf_score"] is the calibrated score, same as in assign_archetype above.
     """
