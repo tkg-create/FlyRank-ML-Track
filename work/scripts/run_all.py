@@ -32,7 +32,7 @@ SCRIPTS_DIR = ROOT / "work" / "scripts"
 
 STEPS = [
     ("01_load_and_score.py", "Load — warehouse features, baseline rule, out-of-fold RF scoring, calibration"),
-    ("02_build_queue.py", "Build queue — archetypes, confidence, ranked by calibrated score, exports"),
+    ("02_build_queue.py", "Build queue — archetypes, coverage, ranked by calibrated score, exports"),
 ]
 
 
