@@ -111,17 +111,13 @@ FEATURE_COLS = [
 
 # --- Cross-fold calibration (added during capstone validation) -------------
 # 01_load_and_score.py trains 5 separate RF models, one per fold, and pools their out-of-fold scores
-# into one column. Three fixes were tried. Pooled isotonic and pooled Platt scaling both fit one curve
-# on raw score alone, which can't tell which fold a row came from, so neither could apply opposite
-# corrections to two folds that needed opposite corrections. Per-fold Platt scaling fixed that (each
-# fold's mean score matched its own base rate exactly) but introduced a new problem: 5 independent
-# curves fit on ~30k rows each can come out a different steepness, so one fold's top scores still ran
-# hotter than the rest, just a different fold each time.
+# into one column. Raw scores from different folds' models aren't directly comparable, so pooling them
+# unmodified skews the ranking toward whichever fold's model happens to score higher.
 #
-# calibrate_scores() below skips fitting anything. It converts each fold's raw scores to a percentile
-# rank within that fold. No curve, no parameters, nothing to overfit or come out uneven between folds
-# — every fold's scores span 0 to 1 the same way, by construction. Cost: the result is a rank position,
-# not a probability. Worth a plain sentence in the paper's Methodology section.
+# calibrate_scores() converts each fold's raw scores to a percentile rank within that fold. Every
+# fold's scores span 0 to 1 the same way, by construction, so pooling them is fair. Cost: the result is
+# a rank position, not a probability — see the paper's Methodology and Limitations for the full
+# reasoning and the alternatives that were tried first.
 def calibrate_scores(raw_scores: pd.Series, fold_id: pd.Series) -> np.ndarray:
     """Percentile rank within each fold. See the note above this function for why."""
     df = pd.DataFrame({"raw": raw_scores.values, "fold_id": fold_id.values})
@@ -130,29 +126,15 @@ def calibrate_scores(raw_scores: pd.Series, fold_id: pd.Series) -> np.ndarray:
 
 
 # --- Queue ranking (capstone validation) ---------------
-# The queue is ranked by oof_rf_score_calibrated alone. No rule-based nudge.
+# The queue is ranked by oof_rf_score_calibrated alone, no rule-based nudge. The rule still fully
+# drives assign_archetype and the action label on every row — this only removes its influence on sort
+# order. See the paper's Methodology for why the nudge was dropped.
+# --- Archetype / coverage thresholds (w07) -----------
+# All percentile-based off the scored population itself, not fixed numbers. Tuned by hand (w07).
 #
-# w07 originally used combined_score = oof_rf_score + BASELINE_NUDGE_WEIGHT * baseline_score, an
-# additive nudge chosen over two rejected alternatives (tier-first sort, 50/50 percentile blend).
-# During capstone validation, once oof_rf_score was replaced with a fold-fair calibrated score, every
-# nudge variant tested (the original additive nudge, smaller weights, tier-first, percentile blend,
-# proportional lift) reintroduced fold skew the calibration fix was meant to remove. Dropping the
-# nudge entirely was the only tested option with clean fold fairness (~20% per fold at every K) that
-# still beat the rule at K=50 (see work/outputs/capstone_precision_at_k.json).
-#
-# The rule still fully drives assign_archetype and the action label on every row — this only removes
-# its influence on sort order within the queue.
-# --- Archetype / coverage thresholds (w07, renamed during capstone validation) -----------
-# All percentile-based off the scored population itself, not fixed numbers. Tuned by hand (w07) —
-# 0.25/0.05 is where both thresholds still discriminate meaningfully without flagging most of the
-# queue as low-coverage or collapsing model_only_catch into "basically all low-coverage."
-#
-# This tier was originally called "confidence." A check during capstone validation compared it
-# against real outcomes and found low-tier rows had a HIGHER actual decline rate than high-tier rows
-# in every archetype — the opposite of what "confidence" implies. The underlying logic (data volume,
-# distance from the score threshold) was never wrong for what it measures, only for what it was
-# called. Renamed to "coverage" rather than rebuilt, since a real outcome-grounded confidence measure
-# is new design work, not a quick fix — see Limitations.
+# This tier was originally called "confidence." Renamed during capstone validation — it measures data
+# volume and score-boundary proximity, not outcome reliability, and doesn't track outcomes the way the
+# old name implied. See the paper's Limitations for the check that prompted the rename.
 HIGH_SCORE_PERCENTILE = 0.90    # model_only_catch: top decile of oof_rf_score among unflagged rows
 LARGE_SWING_PERCENTILE = 0.90   # caution flag: top decile of |position_change|
 LOW_DATA_PERCENTILE = 0.25      # coverage: bottom quartile of total_impressions_full
@@ -163,8 +145,7 @@ def assign_archetype(row: pd.Series, high_score_cut: float, large_swing_cut: flo
     """Returns (priority_tier, archetype, action). See w07 Section 1.
 
     priority_tier is descriptive only, not the sort order — the queue sorts on oof_rf_score directly.
-    row["oof_rf_score"]
-    is whatever the caller put there — the calibrated score, as set by 02_build_queue.py.
+    row["oof_rf_score"] is the calibrated score, set by 02_build_queue.py.
     """
     if row["zero_clicks_at_position"] == 1 and row["position_worsened"] == 1:
         return 1, "zero_clicks_and_worsened", "Refresh content + overhaul title/meta"
@@ -191,11 +172,8 @@ def assign_coverage(
     high_score_cut: float,
     boundary_margin: float,
 ) -> str:
-    """Returns 'low' or 'high'. Data volume and score-boundary proximity only — not validated
-    against real outcomes, and a check found it doesn't track them. See the note above and
-    Limitations. Was named 'confidence' before that check; renamed, not rebuilt.
-
-    row["oof_rf_score"] is the calibrated score, same as in assign_archetype above.
+    """Returns 'low' or 'high'. Data volume and score-boundary proximity only, not an outcome-based
+    confidence measure — see the note above. row["oof_rf_score"] is the calibrated score.
     """
     if row["total_impressions_full"] < low_data_cut:
         return "low"

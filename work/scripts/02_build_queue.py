@@ -2,13 +2,9 @@
 
 Consolidates work from previous notebooks (archetype/coverage assignment, queue ranking) and output (metrics JSON, charts, report, local-only queue CSV).
 
-The queue is ranked by oof_rf_score_calibrated alone, no rule-based nudge — see
-w07_pipeline_utils.py's module-level note for why. The original raw score is preserved as
-oof_rf_score_raw for audit and as a tiebreak.
-
-The per-row tier assigned here was originally called "confidence." Renamed to "coverage"
-during capstone validation after a check found low-tier rows had a higher real decline rate
-than high-tier rows — see w07_pipeline_utils.py's note near assign_coverage().
+The queue is ranked by oof_rf_score_calibrated alone, no rule-based nudge, and coverage
+(formerly "confidence") measures data volume, not outcome reliability — see
+w07_pipeline_utils.py for both.
 
 Usage:
     python work/scripts/02_build_queue.py

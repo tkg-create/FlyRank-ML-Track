@@ -1,11 +1,10 @@
 """Validate the deployed queue score's ranking quality.
 
-w06 validated oof_rf_score with GroupKFold precision@K. w07's queue was built directly on
-top of that score. During capstone validation, oof_rf_score was replaced with a fold-fair
-calibrated version (oof_rf_score_calibrated), and every tested way of blending in the rule
-(additive nudge at several weights, tier-first sort, percentile blend, proportional lift)
-reintroduced fold skew. The queue drops the nudge and ranks on oof_rf_score_calibrated
-alone. This script validates that score directly, since it's what actually gets deployed.
+w06 validated oof_rf_score with GroupKFold precision@K. During capstone validation,
+oof_rf_score was replaced with a fold-fair calibrated version (oof_rf_score_calibrated),
+and the queue was changed to rank on it alone, with no rule-based combination (see
+w07_pipeline_utils.py for why). This script validates that score directly, since it's what
+actually gets deployed.
 
 One extra check runs before trusting anything else here: calibration (percentile rank
 within each fold) can't invert the order of two rows with genuinely different raw scores,

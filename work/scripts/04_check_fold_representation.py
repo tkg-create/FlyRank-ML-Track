@@ -1,14 +1,10 @@
 """Check whether the top-K queue is disproportionately drawn from one GroupKFold fold.
 
-w06's error analysis found that pooling raw out-of-fold probabilities across 5 separately
-trained fold models does not produce a clean cross-client ranking. One fold's model output
-systematically higher raw scores without being more accurate, so a pooled top-50 built by
-sorting all folds' scores together came out almost entirely made of that fold's rows.
-
-That check was rerun on the real scored population and confirmed severe (one fold took
-93-100% of the top-K at every K checked; see work/outputs/fold_representation_check.json
-from before the fix). w07_pipeline_utils.calibrate_scores() fixes it, and 02_build_queue.py
-now ranks the deployed queue on the calibrated score directly.
+Pooling raw out-of-fold scores across 5 separately trained fold models doesn't produce a
+comparable cross-fold ranking on its own — one fold's model can score systematically higher
+without being more accurate, so a pooled top-K ends up dominated by that fold regardless of
+which pages are actually declining. w07_pipeline_utils.calibrate_scores() fixes this, and
+02_build_queue.py ranks the deployed queue on the calibrated score.
 
 This script checks raw and calibrated side by side, so the fix's effect is visible in one
 run rather than needing a before/after diff across two separate runs.
