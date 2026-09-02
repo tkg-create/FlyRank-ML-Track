@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 import duckdb
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
@@ -22,10 +23,12 @@ from sklearn.model_selection import GroupKFold
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from w07_pipeline_utils import (  # noqa: E402
+    CHART_DIR,
     FEATURE_COLS,
     HALF_SPLIT_DATE,
     HF_MONTH_PATH,
     N_FOLDS,
+    OUTPUT_DIR,
     PROCESSED_DIR,
     RANDOM_STATE,
     WEEK1_END_DATE,
@@ -150,10 +153,14 @@ def load_model_df(con: duckdb.DuckDBPyConnection) -> pd.DataFrame:
     return model_df
 
 
-def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
+def add_oof_scores(model_df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """Adds oof_rf_score (raw), fold_id (which fold scored each row), and
     oof_rf_score_calibrated (within-fold percentile rank — see
     w07_pipeline_utils.calibrate_scores for why this exists).
+
+    Also returns each fold's feature_importances_. These 5 fits are the only RF training
+    that happens anywhere in the pipeline — collecting importances here avoids retraining
+    just to get them.
     """
     X = model_df[FEATURE_COLS].astype(float)
     y = model_df["is_declining_proxy"].astype(int)
@@ -161,6 +168,7 @@ def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
 
     oof_rf = np.full(len(model_df), np.nan)
     fold_id = np.full(len(model_df), -1, dtype=int)
+    importances = []
     gkf = GroupKFold(n_splits=N_FOLDS)
     for fold_num, (train_idx, test_idx) in enumerate(gkf.split(X, y, groups), start=1):
         print(f"  Fold {fold_num}/{N_FOLDS}: fitting on {len(train_idx):,} rows, scoring {len(test_idx):,}...", flush=True)
@@ -171,6 +179,7 @@ def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
         rf.fit(X.iloc[train_idx], y.iloc[train_idx])
         oof_rf[test_idx] = rf.predict_proba(X.iloc[test_idx])[:, 1]
         fold_id[test_idx] = fold_num
+        importances.append(rf.feature_importances_)
         print(f"  Fold {fold_num}/{N_FOLDS}: done", flush=True)
 
     assert (fold_id > 0).all(), "Every row should have been scored by exactly one fold — some rows never got a fold_id."
@@ -182,7 +191,25 @@ def add_oof_scores(model_df: pd.DataFrame) -> pd.DataFrame:
     print("  Calibrating OOF scores (percentile rank within each fold)...", flush=True)
     model_df["oof_rf_score_calibrated"] = calibrate_scores(model_df["oof_rf_score"], model_df["fold_id"])
 
-    return model_df
+    importance_df = pd.DataFrame(importances, columns=FEATURE_COLS)
+    return model_df, importance_df
+
+
+def write_feature_importance_chart(importance_df: pd.DataFrame) -> None:
+    means = importance_df.mean().sort_values()
+    write_json(OUTPUT_DIR / "feature_importance.json", {
+        "note": "Mean feature importance across the 5 fold models trained during OOF scoring.",
+        "mean_importance": means.to_dict(),
+    })
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    ax.barh(means.index, means.values, color="#426B69")
+    ax.set_xlabel("Mean feature importance across 5 folds")
+    ax.set_title("What the model actually relies on")
+    plt.tight_layout()
+    plt.savefig(CHART_DIR / "feature_importance.svg")
+    plt.close(fig)
+    print(f"Wrote {display_path(CHART_DIR / 'feature_importance.svg')}")
 
 
 def main() -> None:
@@ -198,13 +225,15 @@ def main() -> None:
     print(f"model_df: {model_df.shape}, base rate: {model_df['is_declining_proxy'].mean():.3f}")
 
     print(f"Running {N_FOLDS}-fold GroupKFold OOF scoring (random_state={RANDOM_STATE})...")
-    model_df = add_oof_scores(model_df)
+    model_df, importance_df = add_oof_scores(model_df)
     coverage = model_df["oof_rf_score"].notna().sum()
     print(f"OOF coverage: {coverage} / {len(model_df)} rows")
 
     output_path = Path(args.output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     model_df.to_csv(output_path, index=False)
+
+    write_feature_importance_chart(importance_df)
 
     write_json(Path(args.metadata), {
         "population_size": int(len(model_df)),

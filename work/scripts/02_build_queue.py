@@ -153,6 +153,22 @@ def make_charts(model_df: pd.DataFrame, chart_dir: Path) -> None:
     plt.savefig(chart_dir / "coverage_mix.svg")
     plt.close(fig)
 
+    tail_check = model_df.groupby("archetype")["oof_rf_score"].agg(
+        mean="mean", p50="median", p95=lambda s: s.quantile(0.95),
+        p99=lambda s: s.quantile(0.99), max="max",
+    )
+    fig, ax = plt.subplots(figsize=(8, 4))
+    tail_check[["p50", "mean", "p95", "p99", "max"]].plot(
+        kind="bar", ax=ax, color=["#426B69", "#6F4E7C", "#9BB88A", "#C9A66B", "#B85C5C"]
+    )
+    ax.set_ylabel("Calibrated score")
+    ax.set_title("Score distribution by archetype")
+    ax.legend(loc="lower right")
+    plt.xticks(rotation=20, ha="right")
+    plt.tight_layout()
+    plt.savefig(chart_dir / "score_distribution_by_archetype.svg")
+    plt.close(fig)
+
 
 def write_report(ranked_queue: pd.DataFrame, metrics: dict, report_path: Path) -> None:
     action_by_archetype = ranked_queue.groupby("archetype")["action"].first()
@@ -220,6 +236,7 @@ See the source notebook (work/notebooks/w07_action_playbook.ipynb) for intended 
 - `work/outputs/w07_metrics.json`
 - `work/outputs/charts/archetype_mix.svg`
 - `work/outputs/charts/coverage_mix.svg`
+- `work/outputs/charts/score_distribution_by_archetype.svg`
 - `work/data/processed/w07_ranked_queue.csv` (local only — gitignored, not committed;
   regenerate by rerunning work/scripts/run_all.py rather than expecting this file to
   exist in a fresh clone)

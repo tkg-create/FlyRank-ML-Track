@@ -33,12 +33,14 @@ import argparse
 import sys
 from pathlib import Path
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import GroupKFold
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from w07_pipeline_utils import (  # noqa: E402
+    CHART_DIR,
     FEATURE_COLS,
     N_FOLDS,
     OUTPUT_DIR,
@@ -165,6 +167,23 @@ def main() -> None:
     )
     print("\nMean +/- std across 5 folds:")
     print(summary.to_string())
+
+    fig, ax = plt.subplots(figsize=(7, 4))
+    x = range(len(KS))
+    width = 0.35
+    baseline_vals = [summary.loc[k, ("baseline_rule", "mean")] for k in KS]
+    model_vals = [summary.loc[k, ("oof_rf_score_calibrated", "mean")] for k in KS]
+    ax.bar([i - width / 2 for i in x], baseline_vals, width, label="baseline_rule", color="#426B69")
+    ax.bar([i + width / 2 for i in x], model_vals, width, label="model (calibrated)", color="#6F4E7C")
+    ax.set_xticks(list(x))
+    ax.set_xticklabels([f"K={k}" for k in KS])
+    ax.set_ylabel("Precision@K")
+    ax.set_title("Model vs. baseline rule")
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(CHART_DIR / "precision_at_k.svg")
+    plt.close(fig)
+    print(f"Wrote {display_path(CHART_DIR / 'precision_at_k.svg')}")
 
     print(f"\n95% bootstrap CI on fold-level gap vs. baseline_rule (n_boot={N_BOOT}, seed={BOOT_SEED}):")
     ci_records = {}
