@@ -1,0 +1,11 @@
+{
+  "mean_importance": {
+    "avg_position_fh": 0.22083928009858617,
+    "ctr_fh": 0.2079240634167198,
+    "has_position_trend": 0.09420757622786384,
+    "log_clicks_fh": 0.09067244976213763,
+    "log_impressions_fh": 0.2567148356703763,
+    "position_change": 0.12964179482431631
+  },
+  "note": "Mean feature importance across the 5 fold models trained during OOF scoring."
+}

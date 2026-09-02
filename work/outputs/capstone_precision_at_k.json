@@ -3,16 +3,16 @@
   "bootstrap_ci": {
     "100": {
       "calibrated_vs_baseline": {
-        "ci_high": 0.24,
+        "ci_high": 0.236,
         "ci_low": 0.082,
-        "mean_diff": 0.16999999999999998
+        "mean_diff": 0.16799999999999998
       }
     },
     "200": {
       "calibrated_vs_baseline": {
-        "ci_high": 0.21200000000000002,
+        "ci_high": 0.211,
         "ci_low": 0.044999999999999984,
-        "mean_diff": 0.14500000000000002
+        "mean_diff": 0.144
       }
     },
     "50": {
@@ -126,15 +126,15 @@
       "baseline_rule": 0.35,
       "fold": 4,
       "k": 100,
-      "oof_rf_score_calibrated": 0.59,
-      "oof_rf_score_raw": 0.59
+      "oof_rf_score_calibrated": 0.58,
+      "oof_rf_score_raw": 0.58
     },
     {
       "baseline_rule": 0.375,
       "fold": 4,
       "k": 200,
-      "oof_rf_score_calibrated": 0.585,
-      "oof_rf_score_raw": 0.585
+      "oof_rf_score_calibrated": 0.58,
+      "oof_rf_score_raw": 0.58
     },
     {
       "baseline_rule": 0.5,
@@ -180,12 +180,12 @@
         "std": 0.119
       },
       "oof_rf_score_calibrated": {
-        "mean": 0.582,
-        "std": 0.075
+        "mean": 0.58,
+        "std": 0.074
       },
       "oof_rf_score_raw": {
-        "mean": 0.582,
-        "std": 0.075
+        "mean": 0.58,
+        "std": 0.074
       }
     },
     "20": {
@@ -208,11 +208,11 @@
         "std": 0.131
       },
       "oof_rf_score_calibrated": {
-        "mean": 0.578,
+        "mean": 0.577,
         "std": 0.056
       },
       "oof_rf_score_raw": {
-        "mean": 0.578,
+        "mean": 0.577,
         "std": 0.056
       }
     },
