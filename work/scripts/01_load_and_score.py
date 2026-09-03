@@ -212,6 +212,28 @@ def write_feature_importance_chart(importance_df: pd.DataFrame) -> None:
     print(f"Wrote {display_path(CHART_DIR / 'feature_importance.svg')}")
 
 
+def write_sentinel_fill_check(model_df: pd.DataFrame) -> None:
+    """~21% of rows have no week 1/week 2 trend data and default to non-worsening — see
+    the Limitations section this backs. Needs fold_id, so this runs after OOF scoring.
+    """
+    no_trend = model_df[model_df["has_position_trend"] == 0]
+    share = len(no_trend) / len(model_df)
+    breakdown = no_trend["baseline_score"].value_counts(normalize=True).sort_index()
+    no_signal_share = (no_trend["baseline_score"] == 0).mean()
+    fold_base_rates = model_df.groupby("fold_id")["is_declining_proxy"].mean().round(3)
+
+    write_json(OUTPUT_DIR / "sentinel_fill_check.json", {
+        "note": "Rows with has_position_trend == 0 default to non-worsening — see Limitations.",
+        "no_trend_count": int(len(no_trend)),
+        "population_size": int(len(model_df)),
+        "no_trend_share": round(float(share), 3),
+        "baseline_score_breakdown": {str(k): round(float(v), 4) for k, v in breakdown.items()},
+        "no_signal_share": round(float(no_signal_share), 3),
+        "fold_base_rates": {str(k): float(v) for k, v in fold_base_rates.items()},
+    })
+    print(f"Wrote {display_path(OUTPUT_DIR / 'sentinel_fill_check.json')}")
+
+
 def main() -> None:
     args = parse_args()
     ensure_dirs()
@@ -234,6 +256,7 @@ def main() -> None:
     model_df.to_csv(output_path, index=False)
 
     write_feature_importance_chart(importance_df)
+    write_sentinel_fill_check(model_df)
 
     write_json(Path(args.metadata), {
         "population_size": int(len(model_df)),

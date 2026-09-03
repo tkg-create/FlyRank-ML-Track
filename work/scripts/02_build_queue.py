@@ -132,7 +132,7 @@ def build_metrics(model_df: pd.DataFrame, thresholds: dict) -> dict:
     }
 
 
-def make_charts(model_df: pd.DataFrame, chart_dir: Path) -> None:
+def make_charts(model_df: pd.DataFrame, chart_dir: Path) -> pd.DataFrame:
     chart_dir.mkdir(parents=True, exist_ok=True)
 
     fig, ax = plt.subplots(figsize=(8, 4))
@@ -168,6 +168,37 @@ def make_charts(model_df: pd.DataFrame, chart_dir: Path) -> None:
     plt.tight_layout()
     plt.savefig(chart_dir / "score_distribution_by_archetype.svg")
     plt.close(fig)
+
+    return tail_check
+
+
+def write_queue_diagnostics(ranked_queue: pd.DataFrame, tail_check: pd.DataFrame, output_dir: Path) -> None:
+    """Coverage-outcome check, K-sweep, and score distribution by archetype — the evidence
+    behind two Limitations entries (the coverage rename, the K=50 concentration finding).
+    tail_check is passed in rather than recomputed, since make_charts() already built it
+    for the matching chart.
+    """
+    coverage_outcome = (
+        ranked_queue.groupby(["archetype", "coverage"])["is_declining_proxy"]
+        .agg(["mean", "count"])
+        .round(3)
+    )
+    k_sweep = {
+        str(k): ranked_queue.head(k)["archetype"].value_counts().to_dict()
+        for k in [50, 100, 500, 1000]
+    }
+
+    write_json(output_dir / "queue_diagnostics.json", {
+        "note": "Coverage-outcome check, archetype counts at several K, and score "
+                "distribution by archetype — see Limitations.",
+        "coverage_outcome": {
+            f"{archetype}|{coverage}": {"mean": float(row["mean"]), "count": int(row["count"])}
+            for (archetype, coverage), row in coverage_outcome.iterrows()
+        },
+        "k_sweep": k_sweep,
+        "score_distribution_by_archetype": tail_check.round(3).to_dict(orient="index"),
+    })
+    print(f"Wrote {display_path(output_dir / 'queue_diagnostics.json')}")
 
 
 def write_report(ranked_queue: pd.DataFrame, metrics: dict, report_path: Path) -> None:
@@ -263,10 +294,11 @@ def main() -> None:
 
     output_dir = Path(args.output_dir)
     chart_dir = output_dir / "charts"
-    make_charts(ranked_queue, chart_dir)
+    tail_check = make_charts(ranked_queue, chart_dir)
 
     write_json(output_dir / "w07_metrics.json", metrics)
     write_report(ranked_queue, metrics, output_dir / "w07_report.md")
+    write_queue_diagnostics(ranked_queue, tail_check, output_dir)
 
     queue_output = Path(args.queue_output)
     queue_output.parent.mkdir(parents=True, exist_ok=True)
