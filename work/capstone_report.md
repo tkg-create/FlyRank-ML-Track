@@ -17,16 +17,27 @@ what the output is for. This is the top of your deployed paper.
 
 ## 1. Problem framing
 
-What decision does this support? Name the unit of analysis (page, client, day…), the output
-(score, rank, cluster, report), the action a human takes from it, and the cost of a wrong
-call. Why does data/ML help here at all?
+Organizations that manage content across many sites face a real constraint: a team with a few dozen client sites and hundreds of thousands of pages can't have an editor read all of them every month. Something has to decide which pages get attention first — currently, that decision gets made by rule of thumb, or not at all.
+
+The unit of analysis is a single page, on a single site, in a single month. The output is a ranked queue: for each page, a score, an archetype describing what kind of problem it likely has, and a suggested action — refresh the content, overhaul its title and meta, flag it for manual review, or, for the largest single group, simply monitor. The human in the loop is a content editor, who takes the top of the queue as their to-do list for the month.
+
+Getting this wrong costs in both directions. Send an editor's limited hours to pages that were never actually declining, and the pages that needed help don't get reviewed. Send them somewhere too conservative, and real declines sit unreviewed because nothing surfaced them.
+
+Given a fixed review budget: which declining pages should be reviewed first, and does a model do a better job answering that than a hand-built rule? Manual review doesn't scale to a portfolio this size, and search performance data — position trends, click-through patterns, impression volume — carries enough of the actual signal that a rule can take a first pass at ranking it. Whether a model finds more of that signal than the rule does, under an honest test, is what this work checks.
+
+What follows tests that approach's viability: model-based ranking beats the hand-built rule on one month of historical data, under grouped cross-validation. It doesn't yet score new pages on its own every month — that gap is covered in Limitations and Recommendation.
 
 ## 2. Data safety
 
-Which data you used and which columns you deliberately excluded (and why). Leakage risks you
-considered — especially label-derived fields (`trend_direction`, `trend_pct`) and pseudonymous
-IDs (grouping only, never features). Confirm nothing client-identifying appears anywhere in
-`work/`.
+This work draws on one table from the FlyRank internship warehouse: fact_content_daily_performance, the March 2026 partition, at the report_date × client × content grain. The month splits at March 16 into a first half and second half; the first half further splits at March 8 into two weeks, to measure a within-first-half position trend. Every feature and the label are built from this one table and these boundaries — no other warehouse table contributes.
+
+Two joins were tried and dropped. A join to the warehouse's content-metadata table brought in word count and publication status — dropped because that table is a current-state snapshot, risking information about the content's state now rather than its state when scored. A join to session data brought in engagement metrics — dropped because it's a whole-site denominator being asked to explain a single search channel's decline, and it pointed the wrong direction when tested. The final feature set is native to search performance: position, impressions, clicks, and how they move within the first half of the month.
+
+A separate starter dataset in this project ships two fields, trend_direction and trend_pct, derived from the same later-window comparison the label would need to predict — a clear leak if used as features. Neither field, nor that dataset, is used anywhere in this pipeline; the label here is built independently from impression totals in the two halves of the month.
+
+One leak did happen and was fixed: a full-month impression total and a full-month eligibility flag were briefly used as features, and both leaked the label, since the full-month total partly consists of the same second-half impressions the label is built from. Both were removed from the feature set. The eligibility flag still exists in the data — it gates which pages have enough traffic to be scored, and backs a data-volume tier — but is not passed to the model.
+
+Two pseudonymous hashes run through every table and output: a client ID, used only to group pages for evaluation so a model is never tested on a client it trained on, and a content ID, used only to identify rows. Neither is a feature. Every notebook, script, JSON, CSV, and chart in work/ contains only these hashes and the metrics computed from them — nothing client-identifying appears anywhere in it.
 
 ## 3. Baseline
 
