@@ -1,0 +1,105 @@
+{
+  "coverage_outcome": {
+    "model_only_catch|high": {
+      "count": 1884,
+      "mean": 0.449
+    },
+    "model_only_catch|low": {
+      "count": 5402,
+      "mean": 0.536
+    },
+    "no_flag|high": {
+      "count": 44227,
+      "mean": 0.331
+    },
+    "no_flag|low": {
+      "count": 21343,
+      "mean": 0.579
+    },
+    "position_worsened_only|high": {
+      "count": 48348,
+      "mean": 0.436
+    },
+    "position_worsened_only|low": {
+      "count": 4405,
+      "mean": 0.469
+    },
+    "zero_clicks_and_worsened|high": {
+      "count": 7876,
+      "mean": 0.529
+    },
+    "zero_clicks_and_worsened|low": {
+      "count": 2733,
+      "mean": 0.606
+    },
+    "zero_clicks_only|high": {
+      "count": 9646,
+      "mean": 0.421
+    },
+    "zero_clicks_only|low": {
+      "count": 4811,
+      "mean": 0.472
+    }
+  },
+  "k_sweep": {
+    "100": {
+      "model_only_catch": 40,
+      "position_worsened_only": 59,
+      "zero_clicks_and_worsened": 1
+    },
+    "1000": {
+      "model_only_catch": 355,
+      "position_worsened_only": 548,
+      "zero_clicks_and_worsened": 59,
+      "zero_clicks_only": 38
+    },
+    "50": {
+      "model_only_catch": 20,
+      "position_worsened_only": 30
+    },
+    "500": {
+      "model_only_catch": 167,
+      "position_worsened_only": 309,
+      "zero_clicks_and_worsened": 16,
+      "zero_clicks_only": 8
+    }
+  },
+  "note": "Coverage-outcome check, archetype counts at several K, and score distribution by archetype \u2014 see Limitations.",
+  "score_distribution_by_archetype": {
+    "model_only_catch": {
+      "max": 1.0,
+      "mean": 0.942,
+      "p50": 0.946,
+      "p95": 0.993,
+      "p99": 0.999
+    },
+    "no_flag": {
+      "max": 0.88,
+      "mean": 0.386,
+      "p50": 0.365,
+      "p95": 0.819,
+      "p99": 0.868
+    },
+    "position_worsened_only": {
+      "max": 1.0,
+      "mean": 0.492,
+      "p50": 0.47,
+      "p95": 0.954,
+      "p99": 0.994
+    },
+    "zero_clicks_and_worsened": {
+      "max": 0.999,
+      "mean": 0.749,
+      "p50": 0.802,
+      "p95": 0.959,
+      "p99": 0.991
+    },
+    "zero_clicks_only": {
+      "max": 0.997,
+      "mean": 0.642,
+      "p50": 0.695,
+      "p95": 0.945,
+      "p99": 0.985
+    }
+  }
+}

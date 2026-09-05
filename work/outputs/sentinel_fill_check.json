@@ -1,0 +1,18 @@
+{
+  "baseline_score_breakdown": {
+    "0": 0.8776,
+    "2": 0.1224
+  },
+  "fold_base_rates": {
+    "1": 0.436,
+    "2": 0.478,
+    "3": 0.391,
+    "4": 0.56,
+    "5": 0.328
+  },
+  "no_signal_share": 0.878,
+  "no_trend_count": 31499,
+  "no_trend_share": 0.209,
+  "note": "Rows with has_position_trend == 0 default to non-worsening \u2014 see Limitations.",
+  "population_size": 150675
+}
