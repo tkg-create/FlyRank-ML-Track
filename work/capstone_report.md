@@ -87,6 +87,22 @@ About a fifth of the pages scored have no rule signal at all. No valid week-over
 
 The ranked actions or decisions your output supports, and how a FlyRank editor would use them tomorrow. State your confidence and the limits explicitly.
 
+Everything below describes how to use the output of a proof-of-concept. The queue that exists right now, for the pages already scored this month, is ready to hand to a reviewer. Turning it into something that regenerates itself every month is a separate step, covered below.
+
+An editor works down the queue in ranked order, archetype and suggested action attached to every page: refresh the content, overhaul its title and meta, do both, flag for manual review, or monitor. Each of these is a starting point for a person to look at the actual page before acting.
+
+zero_clicks_and_worsened pages score highest on average of any archetype, 0.749, but rank position won't surface most of them. The model's very top ranks are dominated by the much larger position_worsened_only group, so working strictly top-down turns up almost none of this higher-scoring archetype in the first 50 to 100 reviews. A reviewer who wants these caught should filter for the archetype directly rather than rely on rank order.
+
+The other two archetypes have their own tradeoffs. no_flag pages, the largest group at 43.5 percent and the lowest-scoring, are built for monitoring rather than routine review. model_only_catch pages carry no rule backing at all, but the caution flag built for the model's one known failure mode, a large position swing mistaken for real decline, fires on only 9 of 7,286 of them, so most are worth the look despite the missing backup.
+
+Coverage measures how much data backs a score, and it's worth reading as a cost signal. Low-coverage pages, about a quarter of the queue, carry thinner evidence and deserve closer scrutiny before acting. The tier was renamed from confidence once low-coverage rows turned out to have a higher real decline rate than high-coverage rows in every archetype, so a low-coverage flag calls for a careful read regardless of priority.
+
+Confidence in the ranking itself isn't uniform across queue depth. It's strongest around 50 to 100 pages a month, where the model beat the rule in every fold tested. At the very top, the first 20 pages, the rule won two of five folds, worth extra scrutiny before trusting rank order alone.
+
+This only works for the March 2026 population already scored. A new page next month doesn't belong to any of the five folds this queue was built from, so reusing these scores on it isn't valid.
+
+Generalizing to another month isn't automatic either. The month and the two boundary dates derived from it are hardcoded constants rather than a parameter the pipeline accepts. Pointing this at a different month currently means editing those constants by hand and rerunning everything from scratch. That's a small, well-scoped change — accept a month argument, derive the boundary dates from it — but it hasn't been made or tested yet.
+
 ## 8. Reproducibility
 
 The exact commands to re-run everything from a fresh clone, your random seeds, and your
