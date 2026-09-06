@@ -71,8 +71,6 @@ One failure mode that turned up during development is that a page whose position
 
 ## 6. Interpretation
 
-What the model/clusters actually found. Feature importances or cluster profiles in plain words. Surprises and negative results — a well-understood "no effect" is a valid result.
-
 Three features carry most of the model's decisions, in a fairly even split: how many impressions a page gets, where it ranks, and its click-through rate. Week-over-week position change and the flag for whether trend data even exists matter less. Log clicks alone matters least, behind click-through rate, suggesting the rate a page converts impressions into clicks carries more signal than its raw click count.
 
 One of those three, impression volume, has no equivalent in the baseline rule at all. The rule only ever checks position and clicks; it has no way to treat "the page is losing overall visibility" as a graded signal, only a discrete eligibility cutoff. That's the single feature the model leans on most, and it's the one thing structurally invisible to the rule.
