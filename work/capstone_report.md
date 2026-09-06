@@ -67,7 +67,7 @@ The deliverable is a ranked queue, so the metric is precision@K: what share of t
 
 Where the model disagrees with the rule, the disagreement isn't random. Its scores rise in the same order the rule's own severity tiers do — lowest on pages the rule ignores, highest on pages the rule flags most severely — even on pages where the two land on different actions.
 
-One failure mode turned up during development: a page whose position swings wildly can push the model's score up even if that page was never ranking well to begin with, something the rule's simple worse/not-worse check would never catch. A caution flag built for exactly this case — position swings in the top 10% by size — fires on 9 of the 7,286 pages the model catches that the rule misses entirely. It's rare in the delivered queue, but a real blind spot the rule doesn't share.
+One failure mode that turned up during development is that a page whose position swings wildly can push the model's score up even if that page was never ranking well to begin with, something the rule's simple worse/not-worse check would never catch. A caution flag built for exactly this case — position swings in the top 10% by size — fires on 9 of the 7,286 pages the model catches that the rule misses entirely. It's rare in the delivered queue, but a real blind spot the rule doesn't share.
 
 ## 6. Interpretation
 
