@@ -41,28 +41,41 @@ Two pseudonymous hashes run through every table and output: a client ID, used on
 
 ## 3. Baseline
 
-The transparent rule or score you built first. Why it's a fair comparison, and its numbers on
-the same data and metric as your model.
+The baseline is two signals, combined: has this page held a decent search position (top 10) while getting zero clicks, and has its position gotten worse from the first week of the month to the second. Each is a yes/no flag; a page scores 0–3 depending on how many apply, weighted so the zero-click signal counts double. No training, no parameters — just two conditions an editor could check by eye, which is the point: it's the formalization of what a careful reviewer already does manually, not a strawman built to lose.
+
+Ranked by that score (ties broken by traffic volume) and measured with the same precision@K used for the model, on the same five folds: 0.490 at K=20, 0.420 at K=50, 0.412 at K=100, 0.433 at K=200. The model's corresponding numbers are 0.530, 0.556, 0.580, and 0.577 — a lead at every depth tested, and a clean sweep of all five folds specifically at K=50 and K=100.
+
+One asymmetry in this comparison is worth stating plainly. Of the two signals, only the zero-click flag uses full-month data — the position-trend flag is a week-1-vs-week-2 comparison already confined to the first half, matching the model's window without any change needed. The zero-click flag's fuller window exists because the rule predates the model's own first-half-only restriction, introduced later specifically because full-month features leaked the label almost completely when tried as model inputs. The rule was checked for that same leak when it was built, and correctly cleared — but its definition was never revisited once the model's window tightened around it.
+
+Whether that gap favors the model was worth checking rather than assuming. Holding everything else fixed and swapping in a first-half-only version of the zero-click flag made the rule's precision@K worse at every depth, not better (dropping 0.06–0.15 across K=20 to K=200, e.g. 0.42 → 0.34 at K=50). So where the mismatch has an effect at all, it works against the model's apparent advantage — meaning the comparison above, if imperfect on paper, is fair in the direction that matters: it doesn't inflate the model's win.
 
 ## 4. Model / analysis
 
-Your method and why it fits the lane. The exact feature list (and what you left out on
-purpose). The target or proxy definition, in one sentence.
+This project is a Refresh / Content Opportunity Scoring problem — scoring pages for review priority, giving a reason each one was flagged, and suggesting an action to take — scoped specifically to pages that are declining rather than the fuller growing-recovering-declining spectrum a wider opportunity-scoring system might track. A logistic regression was tried first, since the label is a plain binary outcome. It lost to the baseline rule at every queue depth, and lost outright to random guessing unless the rule's own position-and-clicks interaction was handed to it as an explicit extra feature. A random forest doesn't need that help — it finds the same interaction on its own, by splitting on one signal and then the other. That's why the model in this pipeline is tree-based.
+
+Each of the five fold models is shallow and leaf-floored on purpose: 300 trees, depth 6, a 20-row minimum per leaf. That's sized for a population in the hundreds of thousands, close to a bar the baseline rule could plausibly clear. Six features feed the model, all built from first-half-only search data: average position, the position change from week 1 to week 2 of the first half, log-scaled impressions, log-scaled clicks, click-through rate, and a flag for whether a page had position data in both weeks at all. Log-scaled impressions carries the most weight, with average position and click-through rate close behind it. Position change and the two remaining features trail further back.
+
+Two things were left out on purpose. The rule's own flag, top-10 position with zero clicks rebuilt on first-half-only data, was constructed and tested but never added as a model feature — the tree-based model already finds that combination through its own splits, so handing it in explicitly would solve a problem the model doesn't have. The model also never sees a binary zero-clicks signal the way the rule does. It only sees the continuous click-through rate and click volume behind that signal, so a page's click behavior reaches the model as a spectrum rather than a threshold call. A page one point above the rule's zero-click floor and a page far above it look identical to the rule, and only somewhat different to the model.
+
+A page counts as declining if its total search impressions were lower in the second half of the scored month than in the first half, among pages with any first-half impressions at all. This is a proxy for content decay, covering only pages that are already declining.
 
 ## 5. Evaluation
 
-Your split (grouped by client? time-aware?) and why. Metrics, model vs baseline **on the same
-split**. What the errors look like — a short error analysis beats a big metric table.
+The model only sees the first half of the month; the label lives in the second half. That's a real temporal boundary, though a different thing from a time-based cross-validation split, which would need a third, later window to hold out for testing. The only later window here is the second half, already spent defining the label. Folds are grouped by client instead. This guards against a model that memorizes one site's quirks and looks artificially strong when that site appears on both sides of a split. Five folds, GroupKFold, no client in more than one fold's test set.
+
+The deliverable is a ranked queue, so the metric is precision@K: what share of the top K pages actually declined. A model that scores well by other measures but ranks its best pages badly would still fail the job it's for. On the same five folds, the model beats the rule on average across every depth tested, K=20 through K=200. That average hides real variation. The win is a clean sweep across all five folds only at K=50 and K=100. At K=20 the rule wins two of five folds; at K=200 it wins one. The advantage is real but uneven across queue length, which is part of why the project's operating assumption is anchored specifically at K=50.
+
+Where the model disagrees with the rule, the disagreement isn't random. Its scores rise in the same order the rule's own severity tiers do — lowest on pages the rule ignores, highest on pages the rule flags most severely — even on pages where the two land on different actions.
+
+One failure mode turned up during development: a page whose position swings wildly can push the model's score up even if that page was never ranking well to begin with, something the rule's simple worse/not-worse check would never catch. A caution flag built for exactly this case — position swings in the top 10% by size — fires on 9 of the 7,286 pages the model catches that the rule misses entirely. It's rare in the delivered queue, but a real blind spot the rule doesn't share.
 
 ## 6. Interpretation
 
-What the model/clusters actually found. Feature importances or cluster profiles in plain
-words. Surprises and negative results — a well-understood "no effect" is a valid result.
+What the model/clusters actually found. Feature importances or cluster profiles in plain words. Surprises and negative results — a well-understood "no effect" is a valid result.
 
 ## 7. Recommendation
 
-The ranked actions or decisions your output supports, and how a FlyRank editor would use them
-tomorrow. State your confidence and the limits explicitly.
+The ranked actions or decisions your output supports, and how a FlyRank editor would use them tomorrow. State your confidence and the limits explicitly.
 
 ## 8. Reproducibility
 
