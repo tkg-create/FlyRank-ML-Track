@@ -73,6 +73,16 @@ One failure mode that turned up during development is that a page whose position
 
 What the model/clusters actually found. Feature importances or cluster profiles in plain words. Surprises and negative results — a well-understood "no effect" is a valid result.
 
+Three features carry most of the model's decisions, in a fairly even split: how many impressions a page gets, where it ranks, and its click-through rate. Week-over-week position change and the flag for whether trend data even exists matter less. Log clicks alone matters least, behind click-through rate, suggesting the rate a page converts impressions into clicks carries more signal than its raw click count.
+
+One of those three, impression volume, has no equivalent in the baseline rule at all. The rule only ever checks position and clicks; it has no way to treat "the page is losing overall visibility" as a graded signal, only a discrete eligibility cutoff. That's the single feature the model leans on most, and it's the one thing structurally invisible to the rule.
+
+A tier meant to flag reliable model output turned out backwards. Rows the model was least sure about had a higher real decline rate than rows it was most sure about, in every archetype. It was renamed to coverage, since data volume is what it actually measures.
+
+The model's win at K=50 is real but concentrated. zero_clicks_and_worsened pages score highest of any archetype on average, yet supply almost none of the top 50. position_worsened_only, lower-scoring on average, fills most of it instead. Position change ranks near the bottom of feature importance, so a favored feature doesn't explain this. Population size does — position_worsened_only is roughly five times as populous, and that size fills the top 50 regardless of average score. The advantage documented here is currently a visibility-loss story more than a click-through-loss one.
+
+About a fifth of the pages scored have no rule signal at all. No valid week-over-week position comparison exists for them, so they're treated as non-worsening by default rather than flagged. Most of that fifth gets no rule-based flag whatsoever and depends entirely on the model to be noticed. Whatever the model gets right or wrong there, the rule was never going to catch it either way.
+
 ## 7. Recommendation
 
 The ranked actions or decisions your output supports, and how a FlyRank editor would use them tomorrow. State your confidence and the limits explicitly.
