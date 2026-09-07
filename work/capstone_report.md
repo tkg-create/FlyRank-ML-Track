@@ -93,7 +93,7 @@ zero_clicks_and_worsened pages score highest on average of any archetype, 0.749,
 
 The other two archetypes have their own tradeoffs. no_flag pages, the largest group at 43.5 percent and the lowest-scoring, are built for monitoring rather than routine review. model_only_catch pages carry no rule backing at all, but the caution flag built for the model's one known failure mode, a large position swing mistaken for real decline, fires on only 9 of 7,286 of them, so most are worth the look despite the missing backup.
 
-Coverage measures how much data backs a score, and it's worth reading as a cost signal. Low-coverage pages, about a quarter of the queue, carry thinner evidence and deserve closer scrutiny before acting. The tier was renamed from confidence once low-coverage rows turned out to have a higher real decline rate than high-coverage rows in every archetype, so a low-coverage flag calls for a careful read regardless of priority.
+Coverage measures how much data backs a score, and it's worth reading as a cost signal. Low-coverage pages, about a quarter of the queue, carry thinner evidence and deserve closer scrutiny before acting. The tier was renamed from confidence once examination revealed that low-coverage rows turned out to have a higher real decline rate than high-coverage rows in every archetype, so a low-coverage flag calls for a careful read regardless of priority.
 
 How much to trust the model's edge over the rule isn't the same at every queue depth. It's most solid around 50 to 100 pages a month, where the model beat the rule in every fold tested. At the very top, the first 20 pages, the rule won two of five folds, worth extra scrutiny before trusting rank order alone.
 
