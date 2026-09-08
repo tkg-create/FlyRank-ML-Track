@@ -1,18 +1,19 @@
 """
 Pipeline audit, as a plain script.
 
-Same checks as work/notebooks/pipeline_audit.ipynb, minus the narration. Clones the
-repo fresh, snapshots what's currently committed, reruns the full pipeline, and
-compares the two — labels, features, archetypes, coverage, and precision@K all get
-independently re-derived rather than trusted from the pipeline's own output.
+Same checks as work/notebooks/pipeline_audit.ipynb, minus the narration. 
+Clones the repo fresh, snapshots what's currently committed, reruns the full pipeline, 
+and compares the two — labels, features, archetypes, coverage, 
+and precision@K all get independently re-derived rather than trusted from the pipeline's own output.
 
 Usage:
     python 05_audit.py
     HF_TOKEN=hf_xxx python 05_audit.py   # skips the interactive prompt
 
-Exits 0 if every hard check passes, 1 otherwise. WARN-level checks (documented
-nondeterminism, empirical findings, numbers with no committed source) never block
-the exit code — see the RESULTS table printed at the end for what those are.
+Exits 0 if every hard check passes, 1 otherwise. 
+WARN-level checks (documented nondeterminism, empirical findings, 
+numbers with no committed source) never block the exit code — 
+see the RESULTS table printed at the end for what those are.
 """
 
 import json
@@ -38,8 +39,7 @@ RESULTS = []
 
 
 def check(name, passed, detail="", severity="fail"):
-    """Records one result instead of stopping at the first failure — the point is
-    seeing every problem in one pass."""
+    """Records one result instead of stopping at the first failure — the point is seeing every problem in one pass."""
     if passed:
         status = "PASS"
     else:
@@ -59,8 +59,7 @@ def close(a, b, tol):
 # ---------------------------------------------------------------------------
 
 def clone_repo():
-    """Deletes any stale local copy first, so this always checks what's actually
-    on GitHub right now, not an old checkout."""
+    """Deletes any stale local copy first, so this always checks what's actually on GitHub right now."""
     if os.path.isdir(REPO_DIR):
         shutil.rmtree(REPO_DIR)
     subprocess.run(["git", "clone", REPO_URL], check=True)
@@ -71,8 +70,7 @@ def clone_repo():
 
 
 def snapshot_committed_outputs():
-    """Copies work/outputs/ before anything gets regenerated. Everything compared
-    against 'committed' below reads from this snapshot, not the live repo state."""
+    """Copies work/outputs/ before anything gets regenerated. Everything compared against 'committed' below reads from this snapshot, not the live repo state."""
     if os.path.isdir(COMMITTED_DIR):
         shutil.rmtree(COMMITTED_DIR)
     shutil.copytree("work/outputs", COMMITTED_DIR)
@@ -96,9 +94,8 @@ def run_step(script):
 
 
 def run_pipeline():
-    """01+02 build the live model_df/queue_df and overwrite work/outputs/ with a
-    fresh run. 03+04 are audit scripts in their own right, run so their JSON is
-    fresh too."""
+    """01+02 build the live model_df/queue_df and overwrite work/outputs/ with a fresh run. 
+    03+04 are audit scripts in their own right, run so their JSON is fresh too."""
     os.environ["HF_TOKEN"] = get_hf_token()
     for script in [
         "01_load_and_score.py",
@@ -142,9 +139,8 @@ def load_data():
 
 
 def query_raw_rows(consts):
-    """Pulls raw daily rows straight from the warehouse, for every independent
-    recompute below. Needs its own HF secret — the one 01_load_and_score.py
-    registers doesn't carry over to a separate connection."""
+    """Pulls raw daily rows straight from the warehouse, for every independent recompute below. 
+    Needs its own HF secret — the one 01_load_and_score.py registers doesn't carry over to a separate connection."""
     print("Querying raw daily rows (this can take a minute)...")
     con = duckdb.connect()
     con.execute(f"CREATE SECRET (TYPE huggingface, TOKEN '{os.environ['HF_TOKEN']}')")
