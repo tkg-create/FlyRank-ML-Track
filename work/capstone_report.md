@@ -1,18 +1,13 @@
-# Capstone Report — <your lane>
+# Capstone Report — Refresh / Content Opportunity Scoring
 
 - **Author:** Timothy Karhnak-Glasby
 - **Lane:** Refresh / Content Opportunity Scoring
 - **Repo:** FlyRank-ML-Track
 - **Date:** 9/5/2026
 
-> Copy this file to `work/capstone_report.md` and fill it in as you build. Sections 1–8
-> mirror the Pass / Needs-Work rubric axes, so nothing here is optional. Sections 0 and 9
-> are **paper sections**: your deployed research paper must carry both, and they're here so
-> you never rebuild them from memory at ship time.
-
 ## 0. Abstract
 
-Five sentences, written last, placed first: question → data → method → headline result → what the output is for. This is the top of your deployed paper.
+Can a model prioritize declining web pages for editorial review better than a simple, hand-built rule? The test uses one month of real, pseudonymized Google Search Console data from FlyRank's ML internship warehouse, covering hundreds of thousands of pages across a few dozen client sites. A random forest trained on six first-half-of-month search signals is compared against a transparent two-flag rule, both measured the same way — precision@K — on the same five client-grouped folds. The model beats the rule on average at every queue depth tested, with a clean sweep of all five folds specifically at 50 and 100 pages deep. The result is a proof of concept — a ranked queue, with a reason and a suggested action attached to every page, that validates the underlying approach and hands an editor something usable on the data already scored.
 
 ## 1. Problem framing
 
@@ -113,17 +108,3 @@ The other four pipeline scripts are not independent, unlike the audits. Instead,
 ## 9. Acknowledgments & data credit
 
 This project's data — real search performance records, provided under pseudonymized IDs — came from FlyRank's ML internship program. [Built on the FlyRank ML Internship dataset](https://flyrank.ai).
-
-One short section at the bottom of the deployed paper: "Built on the FlyRank ML Internship
-dataset" **linking to **. Crediting your data source is standard research
-practice — and it's on the capstone's required-section list, so a paper without it isn't done.
-
----
-
-> **Claims checklist before submitting:** observed / measured / directional / decision-support
-> **Metrics vs. base rate:** report your task's base rate (majority-class %) next to any
-> precision@K or accuracy — a high score can just be a high base rate. AUC / lift over
-> baseline are the honest discrimination numbers.
-> language everywhere · no causal claims without an experiment or causal design · no
-> "predicted Google's algorithm" · no client-identifying details · numbers in this report
-> match a fresh re-run.
