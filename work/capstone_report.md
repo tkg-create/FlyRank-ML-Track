@@ -113,8 +113,10 @@ The other four pipeline scripts are not independent, unlike the audits. Instead,
 
 ## 9. Acknowledgments & data credit
 
+This project's data — real search performance records, provided under pseudonymized IDs — came from FlyRank's ML internship program. [Built on the FlyRank ML Internship dataset]((https://flyrank.ai)).
+
 One short section at the bottom of the deployed paper: "Built on the FlyRank ML Internship
-dataset" **linking to https://flyrank.ai**. Crediting your data source is standard research
+dataset" **linking to **. Crediting your data source is standard research
 practice — and it's on the capstone's required-section list, so a paper without it isn't done.
 
 ---
