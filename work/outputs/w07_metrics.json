@@ -1,11 +1,12 @@
 {
   "archetype_counts": {
     "model_only_catch": 7286,
-    "no_flag": 65571,
-    "position_worsened_only": 52752,
+    "no_flag": 65570,
+    "position_worsened_only": 52753,
     "zero_clicks_and_worsened": 10609,
     "zero_clicks_only": 14457
   },
+  "base_rate": 0.4384,
   "coverage_low_pct": 0.257,
   "coverage_split": {
     "high": 111981,
@@ -89,9 +90,9 @@
   "score_used": "oof_rf_score_calibrated (percentile rank within fold) \u2014 see w07_pipeline_utils.py",
   "seed": 42,
   "thresholds": {
-    "boundary_margin": 0.04399341908465457,
-    "high_score_cut": 0.8798683816930912,
-    "large_swing_cut": 12.00168722943724,
+    "boundary_margin": 0.04399408382357829,
+    "high_score_cut": 0.8798816764715658,
+    "large_swing_cut": 12.001687229437234,
     "low_data_cut": 41.0
   }
 }
