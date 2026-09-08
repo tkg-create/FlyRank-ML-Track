@@ -1,7 +1,7 @@
 # Capstone Report — <your lane>
 
 - **Author:** Timothy Karhnak-Glasby
-- **Lane:**
+- **Lane:** Refresh / Content Opportunity Scoring
 - **Repo:** FlyRank-ML-Track
 - **Date:** 9/5/2026
 
