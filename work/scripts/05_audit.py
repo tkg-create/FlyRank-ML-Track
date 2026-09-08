@@ -511,6 +511,13 @@ def check_cross_file_consistency():
             severity="warn",
         )
 
+    check(
+    "base_rate: committed vs. fresh",
+    close(committed_metrics["base_rate"], live_metrics["base_rate"], tol=0.005),
+    detail=f"committed={committed_metrics['base_rate']}, fresh={live_metrics['base_rate']}",
+    severity="warn",
+    )
+
     committed_sentinel = load_committed("sentinel_fill_check.json")
     live_sentinel = load_live("sentinel_fill_check.json")
     check(
