@@ -291,6 +291,7 @@ def main() -> None:
     ranked_queue, thresholds = build_queue(model_df)
     metrics = build_metrics(ranked_queue, thresholds)
     metrics["label_window"] = "impressions before vs after 2026-03-16, month=2026-03"
+    metrics["base_rate"] = round(float(model_df["is_declining_proxy"].mean()), 4)
 
     output_dir = Path(args.output_dir)
     chart_dir = output_dir / "charts"
