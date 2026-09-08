@@ -12,8 +12,7 @@
 
 ## 0. Abstract
 
-Five sentences, written last, placed first: question → data → method → headline result →
-what the output is for. This is the top of your deployed paper.
+Five sentences, written last, placed first: question → data → method → headline result → what the output is for. This is the top of your deployed paper.
 
 ## 1. Problem framing
 
