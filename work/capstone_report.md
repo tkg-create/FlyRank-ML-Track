@@ -101,11 +101,15 @@ This only works for the March 2026 population already scored. A new page next mo
 
 ## 8. Reproducibility
 
-The exact commands to re-run everything from a fresh clone, your random seeds, and your
-environment (`pip freeze` highlights or `requirements.txt` deltas). If you claim a sealed or
-holdout evaluation, two things must be committed: the cell/script that builds the sealed
-frame, and the metrics file it produced — "evaluated once, blind" should be checkable from
-your repo, not taken on faith.
+From a fresh clone: pip install -r requirements.txt, then python work/scripts/run_all.py. That single command prompts for a Hugging Face read token and runs the two steps that produce the actual deliverable, the scored population and the ranked queue. 03_validate_deployed_score.py and 04_check_fold_representation.py run separately afterward and validate what run_all.py produced.
+
+Every fold split and every model fit uses the same seed, 42, recorded in the committed w07_metrics.json and checkable without rerunning anything. The environment itself is pinned to version floors: requirements.txt sets minimums for pandas, numpy, scikit-learn, matplotlib, and duckdb. One exact version is recoverable without a pip freeze at all — matplotlib 3.10.0, embedded in every committed SVG's own metadata. Nothing beyond that single fact is a committed pip-freeze snapshot.
+
+A rerun won't be bit-for-bit identical to what's committed. DuckDB doesn't guarantee row order in its aggregations, and a handful of rows can land in a different archetype between runs as a result. This isn't hypothetical: rerunning the pipeline and diffing the result against what's committed found exactly one page reassigned, from no_flag to position_worsened_only.
+
+Two tools in this repo exist specifically to run that kind of check instead of trusting a single successful pass. work/notebooks/pipeline_audit.ipynb reruns the whole pipeline from a fresh clone. It independently re-derives the label, every feature, and the archetype and coverage logic from raw data, then diffs that recomputation against what the pipeline actually produced, along with every hardcoded number in this report against the committed JSON it claims to cite. work/scripts/05_audit.py runs the same checks as a standalone script, built to work from nothing but a Python environment and this one file, and separately verified to actually do that. In both cases the audits don't actually write back to the repo.
+
+The other four pipeline scripts are not independent, unlike the audits. Instead, they import a shared utilities module and locate the project root relative to their own file location. They need to run from inside a full clone at their real path due to being a single sequence to produce and validate one pipeline, which naturally means they need continuity between scripts.
 
 ## 9. Acknowledgments & data credit
 
