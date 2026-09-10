@@ -11,8 +11,8 @@ model score directly).
 
 | Archetype | Count | Action |
 |---|---:|---|
-| `no_flag` | 65,571 | Monitor |
-| `position_worsened_only` | 52,752 | Refresh content |
+| `no_flag` | 65,570 | Monitor |
+| `position_worsened_only` | 52,753 | Refresh content |
 | `zero_clicks_only` | 14,457 | Overhaul title & meta |
 | `zero_clicks_and_worsened` | 10,609 | Refresh content + overhaul title/meta |
 | `model_only_catch` | 7,286 | Flag for manual review |
